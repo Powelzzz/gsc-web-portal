@@ -25,6 +25,13 @@ export default function ClientDetailsPage() {
   const [driverAndLoaderPerKgFee, setDriverAndLoaderPerKgFee] =
     useState("");
 
+  const [clientServiceRate, setClientServiceRate] = useState("");
+  const [minimumCharging, setMinimumCharging] = useState("");
+
+  // Service Rate (from ClientServiceRate table)
+  const [serviceType, setServiceType] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
+
   /* ----------------------------------------
      LOAD CLIENT BY ID
   ---------------------------------------- */
@@ -37,9 +44,17 @@ export default function ClientDetailsPage() {
       setCodeName(res.data.codeName ?? "");
       setPickUpLocation(res.data.pickUpLocation ?? "");
       setPreferredHaulingSchedule(res.data.preferredHaulingSchedule ?? "");
-      setDriverAndLoaderPerKgFee(
-        res.data.driverAndLoaderPerKgFee ?? ""
-      );
+      setDriverAndLoaderPerKgFee(res.data.driverAndLoaderPerKgFee ?? "");
+
+      setClientServiceRate(res.data.clientServiceRate ?? "");
+      setMinimumCharging(res.data.minimumCharging ?? "");
+
+      // serviceRate may NOT exist (backend update required)
+      if (res.data.serviceRate) {
+        setServiceType(res.data.serviceRate.serviceType ?? "");
+        setPaymentTerms(res.data.serviceRate.paymentTerms ?? "");
+      }
+
     } catch {
       setErrorMsg("Failed to load client details.");
     } finally {
@@ -61,10 +76,12 @@ export default function ClientDetailsPage() {
       registeredCompanyName !== client.registeredCompanyName ||
       codeName !== client.codeName ||
       pickUpLocation !== client.pickUpLocation ||
-      preferredHaulingSchedule !==
-        (client.preferredHaulingSchedule ?? "") ||
-      driverAndLoaderPerKgFee !==
-        (client.driverAndLoaderPerKgFee ?? "")
+      preferredHaulingSchedule !== (client.preferredHaulingSchedule ?? "") ||
+      driverAndLoaderPerKgFee !== (client.driverAndLoaderPerKgFee ?? "") ||
+      clientServiceRate !== (client.clientServiceRate ?? "") ||
+      minimumCharging !== (client.minimumCharging ?? "") ||
+      serviceType !== (client.serviceRate?.serviceType ?? "") ||
+      paymentTerms !== (client.serviceRate?.paymentTerms ?? "")
     );
   };
 
@@ -80,11 +97,18 @@ export default function ClientDetailsPage() {
       return;
     }
 
-    if (
-      driverAndLoaderPerKgFee &&
-      isNaN(Number(driverAndLoaderPerKgFee))
-    ) {
+    if (driverAndLoaderPerKgFee && isNaN(Number(driverAndLoaderPerKgFee))) {
       setErrorMsg("Rate per KG must be a number.");
+      return;
+    }
+
+    if (clientServiceRate && isNaN(Number(clientServiceRate))) {
+      setErrorMsg("Client Service Rate must be a number.");
+      return;
+    }
+
+    if (minimumCharging && isNaN(Number(minimumCharging))) {
+      setErrorMsg("Minimum Charging must be a number.");
       return;
     }
 
@@ -97,9 +121,17 @@ export default function ClientDetailsPage() {
         PickUpLocation: pickUpLocation,
         PreferredHaulingSchedule: preferredHaulingSchedule,
         DriverAndLoaderPerKgFee:
-          driverAndLoaderPerKgFee === ""
-            ? null
-            : Number(driverAndLoaderPerKgFee),
+          driverAndLoaderPerKgFee === "" ? null : Number(driverAndLoaderPerKgFee),
+
+        ClientServiceRate:
+          clientServiceRate === "" ? null : Number(clientServiceRate),
+
+        MinimumCharging:
+          minimumCharging === "" ? null : Number(minimumCharging),
+
+        // requires backend update:
+        ServiceType: serviceType,
+        PaymentTerms: paymentTerms,
       });
 
       setSuccessMsg("Client information successfully updated!");
@@ -118,38 +150,35 @@ export default function ClientDetailsPage() {
      DELETE CLIENT
   ---------------------------------------- */
   const deleteClient = async () => {
-  const confirmDelete = confirm("Are you sure you want to delete this client?");
-  if (!confirmDelete) return;
+    const confirmDelete = confirm("Are you sure you want to delete this client?");
+    if (!confirmDelete) return;
 
-  try {
-    await api.delete(`/admin/client/${id}`);
+    try {
+      await api.delete(`/admin/client/${id}`);
+      setDeleteMsg("Client successfully deleted.");
 
-    setDeleteMsg("Client successfully deleted.");
+      setTimeout(() => {
+        router.push("/admin/clients");
+      }, 1200);
 
-    setTimeout(() => {
-      router.push("/admin/clients");
-    }, 1200);
+    } catch (err: any) {
+      if (
+        err.response &&
+        err.response.status === 500 &&
+        err.response.data?.includes("FK_ClientServiceRate_Client")
+      ) {
+        setErrorMsg(
+          "This client cannot be deleted because it has existing assigned service rates."
+        );
+        return;
+      }
 
-  } catch (err: any) {
-    // CHECK if delete failed due to foreign key constraint
-    if (
-      err.response &&
-      err.response.status === 500 &&
-      err.response.data?.includes("FK_ClientServiceRate_Client")
-    ) {
-      setErrorMsg(
-        "This client cannot be deleted because it has existing service rates assigned."
-      );
-      return;
+      setErrorMsg("Failed to delete client.");
     }
-
-    // Default error
-    setErrorMsg("Failed to delete client.");
-  }
-};
+  };
 
   /* ----------------------------------------
-     LOADING / NOT FOUND UI
+     UI STATES
   ---------------------------------------- */
   if (loading) {
     return (
@@ -181,7 +210,6 @@ export default function ClientDetailsPage() {
         Update client details or delete the client record.
       </p>
 
-      {/* SUCCESS / DELETE MESSAGES */}
       {successMsg && (
         <div className="p-3 mb-4 text-sm bg-green-100 text-green-700 border border-green-300 rounded">
           {successMsg}
@@ -194,70 +222,40 @@ export default function ClientDetailsPage() {
         </div>
       )}
 
-      {/* ERROR */}
       {errorMsg && (
         <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded">
           {errorMsg}
         </div>
       )}
 
-      {/* FORM */}
       <div className="space-y-6">
+        <FormGroup label="Registered Company Name" value={registeredCompanyName} onChange={setRegisteredCompanyName} />
+        <FormGroup label="Code Name" value={codeName} onChange={setCodeName} />
+        <FormGroup label="Pick-up Location" value={pickUpLocation} onChange={setPickUpLocation} />
+        <FormGroup label="Preferred Hauling Schedule" value={preferredHaulingSchedule} onChange={setPreferredHaulingSchedule} />
+        <FormGroup label="Rate per KG (Driver + Loader)" value={driverAndLoaderPerKgFee} onChange={setDriverAndLoaderPerKgFee} type="number" />
 
-        <FormGroup
-          label="Registered Company Name"
-          value={registeredCompanyName}
-          onChange={setRegisteredCompanyName}
-        />
+        {/* NEW FIELDS */}
+        <FormGroup label="Client Service Rate" value={clientServiceRate} onChange={setClientServiceRate} type="number" />
+        <FormGroup label="Minimum Charging" value={minimumCharging} onChange={setMinimumCharging} type="number" />
 
-        <FormGroup
-          label="Code Name"
-          value={codeName}
-          onChange={setCodeName}
-        />
-
-        <FormGroup
-          label="Pick-up Location"
-          value={pickUpLocation}
-          onChange={setPickUpLocation}
-        />
-
-        <FormGroup
-          label="Preferred Hauling Schedule"
-          value={preferredHaulingSchedule}
-          onChange={setPreferredHaulingSchedule}
-        />
-
-        <FormGroup
-          label="Rate Per KG (Driver + Loader)"
-          value={driverAndLoaderPerKgFee}
-          onChange={setDriverAndLoaderPerKgFee}
-          type="number"
-        />
-
+        {/* SERVICE RATE FIELDS */}
+        <FormGroup label="Service Type" value={serviceType} onChange={setServiceType} />
+        <FormGroup label="Payment Terms" value={paymentTerms} onChange={setPaymentTerms} />
       </div>
 
-      {/* ACTION BUTTONS */}
       <div className="flex justify-between mt-10">
-
-        <button
-          onClick={deleteClient}
-          className="px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700"
-        >
+        <button onClick={deleteClient} className="px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700">
           Delete Client
         </button>
 
         <button
           onClick={handleSave}
           disabled={saving}
-          className="
-            px-6 py-3 bg-indigo-600 text-white rounded-lg shadow 
-            hover:bg-indigo-700 disabled:opacity-50
-          "
+          className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
-
       </div>
     </div>
   );
@@ -267,29 +265,16 @@ export default function ClientDetailsPage() {
    GENERIC INPUT COMPONENT
 ---------------------------------------------- */
 
-function FormGroup({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-}: any) {
+function FormGroup({ label, value, onChange, type = "text", placeholder = "" }: any) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="
-          w-full border border-gray-300 rounded-lg p-3
-          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-          shadow-sm transition text-gray-700
-        "
+        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition text-gray-700"
       />
     </div>
   );

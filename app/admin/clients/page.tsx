@@ -12,7 +12,7 @@ export default function ClientListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ⭐ PAGINATION STATES
+  // PAGINATION
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -26,7 +26,7 @@ export default function ClientListPage() {
     try {
       const res = await api.get("/admin/client");
 
-      // ⭐ Sort by ID DESC (newest → oldest)
+      // Sort newest → oldest
       const sorted = [...res.data].sort((a, b) => b.id - a.id);
 
       setClients(sorted);
@@ -48,7 +48,9 @@ export default function ClientListPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Clients</h1>
-          <p className="text-gray-500 text-sm">View and manage all registered clients</p>
+          <p className="text-gray-500 text-sm">
+            View and manage all registered clients
+          </p>
         </div>
 
         <Link
@@ -73,7 +75,7 @@ export default function ClientListPage() {
         </div>
       )}
 
-      {/* EMPTY STATE */}
+      {/* EMPTY */}
       {!loading && clients.length === 0 && (
         <div className="text-center py-10 text-gray-400 text-lg font-medium">
           No clients found.
@@ -86,10 +88,9 @@ export default function ClientListPage() {
           <div
             key={client.id}
             className="border rounded-xl p-5 bg-gray-50 hover:bg-gray-100 
-                       transition shadow-sm cursor-pointer"
+              transition shadow-sm cursor-pointer"
             onClick={() => router.push(`/admin/clients/${client.id}`)}
           >
-            {/* Tap-to-manage label */}
             <p className="text-xs text-gray-500 text-right -mt-1 mb-1">
               Click to view & manage
             </p>
@@ -99,21 +100,58 @@ export default function ClientListPage() {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
               <Detail label="Code Name" value={client.codeName} />
-              <Detail label="Pick-up Location" value={client.pickUpLocation} />
+
+              <Detail
+                label="Pick-up Location"
+                value={client.pickUpLocation}
+              />
+
               <Detail
                 label="Preferred Schedule"
                 value={client.preferredHaulingSchedule || "—"}
               />
 
               <Detail
-                label="Rate per KG (Driver + Loader)"
+                label="Rate/kg (Driver + Loader)"
                 value={
                   client.driverAndLoaderPerKgFee
-                    ? `₱${client.driverAndLoaderPerKgFee} / kg`
+                    ? `₱${client.driverAndLoaderPerKgFee}`
                     : "—"
                 }
               />
+
+              {/* NEW FIELDS ↓↓↓ */}
+
+              <Detail
+                label="Client Service Rate"
+                value={
+                  client.clientServiceRate
+                    ? `₱${client.clientServiceRate}`
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Minimum Charging"
+                value={
+                  client.minimumCharging
+                    ? `₱${client.minimumCharging}`
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Service Type"
+                value={client.serviceRate?.serviceType ?? "—"}
+              />
+
+              <Detail
+                label="Payment Terms"
+                value={client.serviceRate?.paymentTerms ?? "—"}
+              />
+
             </div>
           </div>
         ))}
@@ -122,16 +160,16 @@ export default function ClientListPage() {
       {/* PAGINATION */}
       {clients.length > 0 && (
         <div className="flex justify-center items-center gap-3 mt-8">
-
-          {/* PREV */}
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
             className={`
               px-4 py-2 rounded-lg border text-sm font-medium
-              ${page === 1
-                ? "text-gray-400 border-gray-200"
-                : "text-gray-700 border-gray-300 hover:bg-gray-100"}
+              ${
+                page === 1
+                  ? "text-gray-400 border-gray-200"
+                  : "text-gray-700 border-gray-300 hover:bg-gray-100"
+              }
             `}
           >
             Previous
@@ -141,27 +179,27 @@ export default function ClientListPage() {
             Page {page} of {totalPages}
           </span>
 
-          {/* NEXT */}
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className={`
               px-4 py-2 rounded-lg border text-sm font-medium
-              ${page === totalPages
-                ? "text-gray-400 border-gray-200"
-                : "text-gray-700 border-gray-300 hover:bg-gray-100"}
+              ${
+                page === totalPages
+                  ? "text-gray-400 border-gray-200"
+                  : "text-gray-700 border-gray-300 hover:bg-gray-100"
+              }
             `}
           >
             Next
           </button>
-
         </div>
       )}
     </div>
   );
 }
 
-/* Detail Component */
+/* DETAIL COMPONENT */
 function Detail({ label, value }: any) {
   return (
     <div className="flex flex-col">

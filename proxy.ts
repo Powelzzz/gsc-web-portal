@@ -16,34 +16,40 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get("gc_token")?.value || null;
   const role = request.cookies.get("gc_user_role")?.value || null;
 
-  // NOT LOGGED IN → redirect to login
+  // NO LOGIN
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ROOT ROUTING
+  // ROOT REDIRECT AFTER LOGIN
   if (pathname === "/") {
-    if (role === "Admin") {
+    if (role === "Admin")
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    if (role === "Accounting")
       return NextResponse.redirect(new URL("/accounting", request.url));
-    }
-
-    if (role === "Driver") {
+    if (role === "Driver")
       return NextResponse.redirect(new URL("/driver/app-required", request.url));
-    }
 
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ADMIN PROTECTION
+  // ADMIN PROTECTED ROUTES
   if (pathname.startsWith("/admin")) {
     if (role !== "Admin") {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
   }
 
+  // ACCOUNTING PROTECTED ROUTES
+  if (pathname.startsWith("/accounting")) {
+    if (role !== "Accounting" && role !== "Admin") {
+      return NextResponse.redirect(new URL("/unauthorized", request.url));
+    }
+  }
+
   // DRIVER RESTRICTION
   if (role === "Driver") {
-    if (!pathname.startsWith("/driver/app-required")) {
+    if (!pathname.startsWith("/driver")) {
       return NextResponse.redirect(new URL("/driver/app-required", request.url));
     }
   }
