@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // PUBLIC ROUTES
@@ -21,9 +21,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ================================
-  // ROOT ROUTING BASED ON ROLE
-  // ================================
+  // ROOT ROUTING
   if (pathname === "/") {
     if (role === "Admin") {
       return NextResponse.redirect(new URL("/accounting", request.url));
@@ -36,20 +34,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ================================
-  // ADMIN PORTAL PROTECTION
-  // ================================
+  // ADMIN PROTECTION
   if (pathname.startsWith("/admin")) {
     if (role !== "Admin") {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
   }
 
-  // ================================
-  // DRIVER RESTRICTION (NO WEB ACCESS)
-  // ================================
+  // DRIVER RESTRICTION
   if (role === "Driver") {
-    // Only allow access to driver/app-required
     if (!pathname.startsWith("/driver/app-required")) {
       return NextResponse.redirect(new URL("/driver/app-required", request.url));
     }
