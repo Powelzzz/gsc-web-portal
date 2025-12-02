@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
@@ -15,6 +16,8 @@ export default function CreateAccountingStaffPage() {
   // store ONLY the digits (e.g., "9123456789")
   const [contactDigits, setContactDigits] = useState("");
 
+  const [roleId, setRoleId] = useState(""); // ⭐ NEW
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,6 +28,11 @@ export default function CreateAccountingStaffPage() {
     const contactNumber =
       contactDigits.trim() === "" ? "" : `+63${contactDigits}`;
 
+    if (!roleId) {
+      setError("Please select a role.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -34,6 +42,7 @@ export default function CreateAccountingStaffPage() {
         username,
         email,
         contactNumber,
+        roleId: Number(roleId),   
       });
 
       router.push("/admin/accounting");
@@ -60,8 +69,11 @@ export default function CreateAccountingStaffPage() {
         <FormGroup label="Username" value={username} onChange={setUsername} required />
         <FormGroup label="Email (Optional)" type="email" value={email} onChange={setEmail} />
 
-        {/* Contact Number using new UI */}
+        {/* Contact Number */}
         <ContactField value={contactDigits} onChange={setContactDigits} />
+
+        {/* ⭐ ROLE DROPDOWN */}
+        <RoleSelect roleId={roleId} setRoleId={setRoleId} />
 
         <button
           type="submit"
@@ -71,6 +83,34 @@ export default function CreateAccountingStaffPage() {
           {loading ? "Saving..." : "Save Accounting Staff"}
         </button>
       </form>
+    </div>
+  );
+}
+
+function RoleSelect({
+  roleId,
+  setRoleId,
+}: {
+  roleId: string;
+  setRoleId: Dispatch<SetStateAction<string>>;
+}) {
+  return (
+    <div>
+      <label className="block font-medium mb-1">Select Role</label>
+
+      <select
+        value={roleId}
+        onChange={(e) => setRoleId(e.target.value)}
+        className="w-full border p-3 rounded-lg"
+        required
+      >
+        <option value="">Choose role...</option>
+
+        <option value="5">Accounting Super Admin</option>
+        <option value="6">Accounts Receivable</option>
+        <option value="7">Accounts Payable</option>
+        <option value="8">Messenger</option>
+      </select>
     </div>
   );
 }
@@ -94,10 +134,7 @@ function FormGroup({ label, value, onChange, type = "text", required = false }: 
 /* Contact Number Component */
 function ContactField({ value, onChange }: any) {
   const handleChange = (e: any) => {
-    // only digits allowed
     const digits = e.target.value.replace(/\D/g, "");
-
-    // limit to 10 digits
     if (digits.length <= 10) onChange(digits);
   };
 

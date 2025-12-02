@@ -9,8 +9,9 @@ const api = axios.create({
   },
 });
 
+// REQUEST INTERCEPTOR (async so we can dynamically import jwt-decode)
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("gc_token")
@@ -18,6 +19,16 @@ api.interceptors.request.use(
 
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+
+      // decode token and save permissions (best-effort)
+      try {
+        const mod = await import("jwt-decode");
+        const jwtDecode = (mod as any).default ?? mod;
+        const decoded = jwtDecode(token);
+        localStorage.setItem("gc_permissions", JSON.stringify(decoded.perm ?? []));
+      } catch (err) {
+        // ignore decode errors
+      }
     }
 
     return config;
@@ -25,6 +36,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
@@ -35,6 +47,7 @@ api.interceptors.response.use(
         localStorage.removeItem("gc_user_role");
         localStorage.removeItem("gc_user_firstname");
         localStorage.removeItem("gc_user_lastname");
+        // don't attempt to use `decoded` here
 
         // Clear cookie
         document.cookie = "gc_token=; path=/; max-age=0";

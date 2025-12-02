@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { hasPermission } from "@/lib/permissions";
+
 import {
   Menu,
   Home,
@@ -14,20 +16,13 @@ import {
   LogOut,
 } from "lucide-react";
 
-type AccountingSidebarProps = {
-  open: boolean;
-  setOpen: (val: boolean) => void;
-};
-
 export default function AccountingLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="flex">
-      {/* USE AccountingSidebar instead of Sidebar */}
       <AccountingSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      {/* MAIN CONTENT AREA */}
       <main
         className={`
           min-h-screen w-full p-6 bg-gray-50 overflow-y-auto transition-all duration-300
@@ -40,8 +35,11 @@ export default function AccountingLayout({ children }: { children: React.ReactNo
   );
 }
 
-/* ACCOUNTING SIDEBAR */
-function AccountingSidebar({ open, setOpen }: AccountingSidebarProps) {
+/* ============================================================= */
+/*                   ACCOUNTING SIDEBAR                          */
+/* ============================================================= */
+
+function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
@@ -53,20 +51,94 @@ function AccountingSidebar({ open, setOpen }: AccountingSidebarProps) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("gc_token");
-    localStorage.removeItem("gc_user_role");
-    localStorage.removeItem("gc_user_firstname");
-    localStorage.removeItem("gc_user_lastname");
+    localStorage.clear();
     document.cookie = "gc_token=; path=/; max-age=0";
     document.cookie = "gc_user_role=; path=/; max-age=0";
     window.location.href = "/login";
   };
 
+  /* ============================================================= */
+  /*                    DETECT MESSENGER ROLE                      */
+  /* ============================================================= */
+
+  const isMessenger =
+    hasPermission("invoices.upload_sent") &&
+    !hasPermission("clients.update_rates"); // Messenger does NOT have this
+
+  /* MESSENGER-SPECIFIC SIDEBAR (returns early) */
+  if (isMessenger) {
+    return (
+      <aside
+        className={`
+          bg-white shadow-lg h-screen p-4 transition-all duration-300 border-r
+          fixed top-0 left-0 overflow-y-auto z-50
+          ${open ? "w-64" : "w-20"}
+        `}
+      >
+        {/* Toggle */}
+        <button
+          onClick={() => setOpen(!open)}
+          className="mb-6 text-gray-600 hover:text-black transition"
+        >
+          <Menu size={22} />
+        </button>
+
+        {/* PROFILE */}
+        <div className="flex items-center gap-3 mb-8">
+          <img src="/avatar.png" alt="Profile" className="w-10 h-10 rounded-full border" />
+          {open && (
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-gray-800">
+                {firstName} {lastName}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 text-xs text-red-500 hover:underline"
+              >
+                <LogOut size={14} /> Logout
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* MESSENGER MENU */}
+        <nav className="space-y-1">
+          <SidebarItem
+            open={open}
+            href="/accounting"
+            icon={<Home size={20} />}
+            label="Dashboard"
+          />
+
+          <SidebarSection open={open} title="Messenger Tasks" />
+
+          <SidebarItem
+            open={open}
+            href="/accounting/billing/sent"
+            icon={<FolderKanban size={20} />}
+            label="Upload Sent Billing"
+          />
+
+          <SidebarItem
+            open={open}
+            href="/accounting/payments/encode"
+            icon={<DollarSign size={20} />}
+            label="Upload Proof of Payment"
+          />
+        </nav>
+      </aside>
+    );
+  }
+
+  /* ============================================================= */
+  /*             FULL ACCOUNTING SIDEBAR (AR, AP, SUPERADMIN)      */
+  /* ============================================================= */
+
   return (
     <aside
       className={`
         bg-white shadow-lg h-screen p-4 transition-all duration-300 border-r
-        fixed top-0 left-0 overflow-y-auto
+        fixed top-0 left-0 overflow-y-auto z-50
         ${open ? "w-64" : "w-20"}
       `}
     >
@@ -80,12 +152,7 @@ function AccountingSidebar({ open, setOpen }: AccountingSidebarProps) {
 
       {/* PROFILE */}
       <div className="flex items-center gap-3 mb-8">
-        <img
-          src="/avatar.png"
-          alt="Profile"
-          className="w-10 h-10 rounded-full border"
-        />
-
+        <img src="/avatar.png" alt="Profile" className="w-10 h-10 rounded-full border" />
         {open && (
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-gray-800">
@@ -103,81 +170,139 @@ function AccountingSidebar({ open, setOpen }: AccountingSidebarProps) {
 
       {/* MENU */}
       <nav className="space-y-1">
-        <SidebarItem
-          open={open}
-          href="/accounting"
-          icon={<Home size={20} />}
-          label="Dashboard"
-        />
 
-        <SidebarSection open={open} title="Rates" />
-        <SidebarItem
-          open={open}
-          href="/accounting/rates"
-          icon={<ClipboardList size={20} />}
-          label="Encode Rates per Client"
-        />
+        {/* DASHBOARD ALWAYS VISIBLE */}
+        <SidebarItem open={open} href="/accounting" icon={<Home size={20} />} label="Dashboard" />
 
-        <SidebarSection open={open} title="Billing" />
-        <SidebarItem
-          open={open}
-          href="/accounting/billing/generate"
-          icon={<FileText size={20} />}
-          label="Generate Billing / Invoice"
-        />
-        <SidebarItem
-          open={open}
-          href="/accounting/billing/sent"
-          icon={<FolderKanban size={20} />}
-          label="Upload Sent Billing"
-        />
+        {/* RATES */}
+        {hasPermission("clients.update_rates") && (
+          <>
+            <SidebarSection open={open} title="Rates" />
+            <SidebarItem
+              open={open}
+              href="/accounting/rates"
+              icon={<ClipboardList size={20} />}
+              label="Encode Rates per Client"
+            />
+          </>
+        )}
 
-        <SidebarSection open={open} title="Payments" />
-        <SidebarItem
-          open={open}
-          href="/accounting/payments/encode"
-          icon={<DollarSign size={20} />}
-          label="Encode Received Payments"
-        />
-        <SidebarItem
-          open={open}
-          href="/accounting/payments/collected"
-          icon={<BookOpen size={20} />}
-          label="Collected Payments Report"
-        />
-        <SidebarItem
-          open={open}
-          href="/accounting/payments/deposits"
-          icon={<FolderKanban size={20} />}
-          label="Deposit Slips"
-        />
+        {/* BILLING */}
+        {(hasPermission("invoices.create") || hasPermission("invoices.upload_sent")) && (
+          <>
+            <SidebarSection open={open} title="Billing" />
 
-        <SidebarSection open={open} title="Reports" />
-        <SidebarItem
-          open={open}
-          href="/accounting/reports/payment-collections"
-          icon={<FileBarChart size={20} />}
-          label="Payment Collection Reports"
-        />
-        <SidebarItem
-          open={open}
-          href="/accounting/reports/unpaid-billing"
-          icon={<FileBarChart size={20} />}
-          label="Unpaid Billing Reports"
-        />
-        <SidebarItem
-          open={open}
-          href="/accounting/reports/soa"
-          icon={<FileBarChart size={20} />}
-          label="Statement of Accounts"
-        />
+            {hasPermission("invoices.create") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/billing/generate"
+                icon={<FileText size={20} />}
+                label="Generate Billing / Invoice"
+              />
+            )}
+
+            {hasPermission("invoices.upload_sent") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/billing/sent"
+                icon={<FolderKanban size={20} />}
+                label="Upload Sent Billing"
+              />
+            )}
+          </>
+        )}
+
+        {/* PAYMENTS */}
+        {(hasPermission("collections.upload_receipt") || 
+          hasPermission("collections.view_paid_report") ||
+          hasPermission("collections.view_deposits")) && (
+          <>
+            <SidebarSection open={open} title="Payments" />
+
+            {hasPermission("collections.upload_receipt") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/payments/encode"
+                icon={<DollarSign size={20} />}
+                label="Encode Received Payments"
+              />
+            )}
+
+            {hasPermission("collections.view_paid_report") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/payments/collected"
+                icon={<BookOpen size={20} />}
+                label="Collected Payments Report"
+              />
+            )}
+
+            {hasPermission("collections.view_deposits") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/payments/deposits"
+                icon={<FolderKanban size={20} />}
+                label="Deposit Slips"
+              />
+            )}
+          </>
+        )}
+
+        {/* REPORTS */}
+        {(hasPermission("reports.ar_paid_accounts") ||
+          hasPermission("reports.ar_unpaid_accounts") ||
+          hasPermission("reports.soa")) && (
+          <>
+            <SidebarSection open={open} title="Reports" />
+
+            {hasPermission("reports.ar_paid_accounts") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/reports/payment-collections"
+                icon={<FileBarChart size={20} />}
+                label="Payment Collection Reports"
+              />
+            )}
+
+            {hasPermission("reports.ar_unpaid_accounts") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/reports/unpaid-billing"
+                icon={<FileBarChart size={20} />}
+                label="Unpaid Billing Reports"
+              />
+            )}
+
+            {hasPermission("reports.soa") && (
+              <SidebarItem
+                open={open}
+                href="/accounting/reports/soa"
+                icon={<FileBarChart size={20} />}
+                label="Statement of Accounts"
+              />
+            )}
+          </>
+        )}
       </nav>
     </aside>
   );
 }
 
-/* Sidebar Item */
-function SidebarItem({ open, href, icon, label }: { open: boolean; href: string; icon: React.ReactNode; label: string }) {
+/* ============================================================= */
+/*                SHARED COMPONENTS                              */
+/* ============================================================= */
+
+function SidebarItem({
+  open,
+  href,
+  icon,
+  label,
+}: {
+  open: boolean;
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
     <Link
       href={href}
@@ -189,7 +314,6 @@ function SidebarItem({ open, href, icon, label }: { open: boolean; href: string;
   );
 }
 
-/* Section Title */
 function SidebarSection({ open, title }: { open: boolean; title: string }) {
   if (!open) return <div className="my-2"></div>;
   return (

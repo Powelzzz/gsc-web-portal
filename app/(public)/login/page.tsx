@@ -32,19 +32,26 @@ export default function LoginPage() {
 
       const data = res.data;
 
-      // Save to localStorage
+      // Save token & user info
       localStorage.setItem("gc_token", data.token);
       localStorage.setItem("gc_user_role", data.role ?? "");
       localStorage.setItem("gc_user_firstname", data.firstName ?? "");
       localStorage.setItem("gc_user_lastname", data.lastName ?? "");
 
-      // Save to cookie (for middleware)
+      // Decode permissions from token
+      const payload = JSON.parse(atob(data.token.split(".")[1]));
+      const permissions = payload.perm || [];
+
+      // Save permissions for UI
+      localStorage.setItem("gc_permissions", JSON.stringify(permissions));
+
+      // Save to cookies (middleware)
       document.cookie = `gc_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
-      document.cookie = `gc_user_role=${data.role}; path=/; max-age=${60 * 60 * 24 * 7}`; // <-- ADDED
+      document.cookie = `gc_user_role=${data.role}; path=/; max-age=${60 * 60 * 24 * 7}`;
 
       // Redirect based on role
       if (data.role === "Admin") {
-        router.push("/admin/dashboard");   // <-- UPDATED
+        router.push("/admin/dashboard");
       } else {
         router.push("/accounting");
       }
@@ -52,6 +59,7 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(err?.response?.data ?? "Invalid username or password");
     }
+
 
     setLoading(false);
   };

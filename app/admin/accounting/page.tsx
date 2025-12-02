@@ -1,30 +1,47 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import api from "@/lib/api";
+import adminApi from "@/lib/adminApi";
 import Link from "next/link";
 
+/* -----------------------------------------
+   Types (optional but helps avoid bugs)
+----------------------------------------- */
+interface StaffUser {
+  id: number;
+  username: string;
+  firstName: string;
+  email: string | null;
+  roleName: string;
+}
+
 export default function AccountingStaffList() {
-  const [staff, setStaff] = useState<any[]>([]);
+  const [staff, setStaff] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   // Pagination
   const pageSize = 5;
   const [page, setPage] = useState(1);
 
+  /* -----------------------------------------
+     Load staff from backend
+     GET /users?s=keyword
+  ----------------------------------------- */
   const loadStaff = async () => {
     try {
-      const res = await api.get("/admin/accounting");
+      const res = await adminApi.get("/users");
       setStaff(res.data);
     } catch (err) {
-      console.error("Failed to load staff");
+      console.error("Failed to load staff", err);
     }
     setLoading(false);
   };
 
+
   useEffect(() => {
     loadStaff();
-  }, []);
+  }, [search]);
 
   const totalPages = Math.ceil(staff.length / pageSize);
   const paginated = staff.slice((page - 1) * pageSize, page * pageSize);
@@ -47,6 +64,20 @@ export default function AccountingStaffList() {
         </Link>
       </div>
 
+      {/* SEARCH BAR */}
+      <div className="mb-5">
+        <input
+          type="text"
+          placeholder="Search staff..."
+          className="w-full p-3 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+      </div>
+
       {/* LOADING */}
       {loading && (
         <p className="text-center py-10 text-gray-500">Loading...</p>
@@ -62,20 +93,20 @@ export default function AccountingStaffList() {
         {paginated.map((s) => (
           <div key={s.id} className="p-5 border bg-gray-50 rounded-xl shadow-sm">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              {s.firstName} {s.lastName}
+              {s.firstName} {s.username}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Detail label="Username" value={s.username} />
-              <Detail label="Email" value={s.email || "N/A"} />
-              <Detail label="Role" value={s.role} />
+              <Detail label="Email" value={s.email ?? "N/A"} />
+              <Detail label="Role" value={s.roleName} />
             </div>
           </div>
         ))}
       </div>
 
       {/* PAGINATION */}
-      {totalPages > 1 && (
+      {!loading && totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
           <button
             className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
@@ -102,7 +133,8 @@ export default function AccountingStaffList() {
   );
 }
 
-function Detail({ label, value }: any) {
+/* DETAIL FIELD COMPONENT */
+function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">
       <span className="text-xs text-gray-500">{label}</span>

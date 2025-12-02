@@ -14,40 +14,67 @@ export function proxy(request: NextRequest) {
 
   // READ COOKIES
   const token = request.cookies.get("gc_token")?.value || null;
-  const role = request.cookies.get("gc_user_role")?.value || null;
+  const role = request.cookies.get("gc_user_role")?.value ?? "";
 
-  // NO LOGIN
+  // ---------------------------------------
+  // NOT LOGGED IN → send to login page
+  // ---------------------------------------
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ROOT REDIRECT AFTER LOGIN
+  // ---------------------------------------
+  // AFTER LOGIN ROOT REDIRECT
+  // ---------------------------------------
   if (pathname === "/") {
     if (role === "Admin")
       return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-    if (role === "Accounting")
+
+    const accountingRoles = [
+      "Accounting",
+      "Accounting Super Admin",
+      "Accounts Receivable",
+      "Accounts Payable",
+      "Messenger",
+    ];
+
+    if (accountingRoles.includes(role))
       return NextResponse.redirect(new URL("/accounting", request.url));
+
     if (role === "Driver")
       return NextResponse.redirect(new URL("/driver/app-required", request.url));
 
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // ---------------------------------------
   // ADMIN PROTECTED ROUTES
+  // ---------------------------------------
   if (pathname.startsWith("/admin")) {
     if (role !== "Admin") {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
   }
 
+  // ---------------------------------------
   // ACCOUNTING PROTECTED ROUTES
+  // ---------------------------------------
+  const accountingRoles = [
+    "Accounting Super Admin",
+    "Accounts Receivable",
+    "Accounts Payable",
+    "Messenger",
+  ];
+
   if (pathname.startsWith("/accounting")) {
-    if (role !== "Accounting" && role !== "Admin") {
+    if (!accountingRoles.includes(role) && role !== "Admin") {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
   }
 
-  // DRIVER RESTRICTION
+  // ---------------------------------------
+  // DRIVER PROTECTED ROUTES
+  // ---------------------------------------
   if (role === "Driver") {
     if (!pathname.startsWith("/driver")) {
       return NextResponse.redirect(new URL("/driver/app-required", request.url));

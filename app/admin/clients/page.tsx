@@ -127,8 +127,8 @@ export default function ClientListPage() {
               <Detail
                 label="Client Service Rate"
                 value={
-                  client.clientServiceRate
-                    ? `₱${client.clientServiceRate}`
+                  client.serviceRate?.ratePerKg
+                    ? `₱${client.serviceRate.ratePerKg}`
                     : "—"
                 }
               />
@@ -136,8 +136,8 @@ export default function ClientListPage() {
               <Detail
                 label="Minimum Charging"
                 value={
-                  client.minimumCharging
-                    ? `₱${client.minimumCharging}`
+                  client.serviceRate?.minimumCharging
+                    ? `₱${client.serviceRate.minimumCharging}`
                     : "—"
                 }
               />
