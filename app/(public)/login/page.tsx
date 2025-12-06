@@ -109,7 +109,16 @@ export default function LoginPage() {
               )}
             </button>
           </div>
-
+          {/* FORGOT PASSWORD LINK */}
+          <div className="flex justify-end mt-1">
+            <button
+              onClick={() => router.push("/forgot-password")}
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+              type="button"
+            >
+              Forgot Password?
+            </button>
+          </div>
           {error && (
             <p className="text-red-600 text-center text-sm font-medium">
               {error}
@@ -123,7 +132,6 @@ export default function LoginPage() {
           >
             {loading ? "Signing In..." : "Sign In"}
           </button>
-
         </div>
       </div>
     </div>
