@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const LeafletMap = dynamic(() => import("components/LeafletMap"), {
+  ssr: false,
+});
 
 export default function ClientDetailsPage() {
   const router = useRouter();
@@ -12,51 +17,53 @@ export default function ClientDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [deleteMsg, setDeleteMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  // Editable fields
-  const [registeredCompanyName, setRegisteredCompanyName] = useState("");
+  // Editable fields (same order as Create)
   const [codeName, setCodeName] = useState("");
+  const [registeredName, setRegisteredName] = useState("");
   const [pickUpLocation, setPickUpLocation] = useState("");
-  const [preferredHaulingSchedule, setPreferredHaulingSchedule] =
-    useState("");
-  const [driverAndLoaderPerKgFee, setDriverAndLoaderPerKgFee] =
-    useState("");
+  const [pickUpLatLong, setPickUpLatLong] = useState("");
+
+  const [preferredSchedule, setPreferredSchedule] = useState("");
+  const [feePerKg, setFeePerKg] = useState("");
 
   const [clientServiceRate, setClientServiceRate] = useState("");
   const [minimumCharging, setMinimumCharging] = useState("");
-
-  // Service Rate (from ClientServiceRate table)
   const [serviceType, setServiceType] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
 
-  /* ----------------------------------------
-     LOAD CLIENT BY ID
-  ---------------------------------------- */
+  // autocomplete
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimeout = useRef<any>(null);
+
+  // Load existing client
   const loadClient = async () => {
     try {
       const res = await api.get(`/admin/client/${id}`);
-      setClient(res.data);
+      const c = res.data;
 
-      setRegisteredCompanyName(res.data.registeredCompanyName ?? "");
-      setCodeName(res.data.codeName ?? "");
-      setPickUpLocation(res.data.pickUpLocation ?? "");
-      setPreferredHaulingSchedule(res.data.preferredHaulingSchedule ?? "");
-      setDriverAndLoaderPerKgFee(res.data.driverAndLoaderPerKgFee ?? "");
+      setClient(c);
 
-      setClientServiceRate(res.data.clientServiceRate ?? "");
-      setMinimumCharging(res.data.minimumCharging ?? "");
+      setCodeName(c.codeName ?? "");
+      setRegisteredName(c.registeredCompanyName ?? "");
+      setPickUpLocation(c.pickUpLocation ?? "");
+      setPickUpLatLong(c.pickUpLatLong ?? "");
 
-      // serviceRate may NOT exist (backend update required)
-      if (res.data.serviceRate) {
-        setServiceType(res.data.serviceRate.serviceType ?? "");
-        setPaymentTerms(res.data.serviceRate.paymentTerms ?? "");
+      setPreferredSchedule(c.preferredHaulingSchedule ?? "");
+      setFeePerKg(c.driverAndLoaderPerKgFee ?? "");
+
+      setClientServiceRate(c.clientServiceRate ?? "");
+      setMinimumCharging(c.minimumCharging ?? "");
+
+      if (c.serviceRate) {
+        setServiceType(c.serviceRate.serviceType ?? "");
+        setPaymentTerms(c.serviceRate.paymentTerms ?? "");
       }
-
     } catch {
-      setErrorMsg("Failed to load client details.");
+      setErrorMsg("Failed to load client.");
     } finally {
       setLoading(false);
     }
@@ -66,79 +73,63 @@ export default function ClientDetailsPage() {
     loadClient();
   }, [id]);
 
-  /* ----------------------------------------
-     DETECT CHANGES
-  ---------------------------------------- */
-  const hasChanges = () => {
-    if (!client) return false;
+  // AUTOCOMPLETE — same as Create page
+  const handlePickupLocationChange = (value: string) => {
+    setPickUpLocation(value);
 
-    return (
-      registeredCompanyName !== client.registeredCompanyName ||
-      codeName !== client.codeName ||
-      pickUpLocation !== client.pickUpLocation ||
-      preferredHaulingSchedule !== (client.preferredHaulingSchedule ?? "") ||
-      driverAndLoaderPerKgFee !== (client.driverAndLoaderPerKgFee ?? "") ||
-      clientServiceRate !== (client.clientServiceRate ?? "") ||
-      minimumCharging !== (client.minimumCharging ?? "") ||
-      serviceType !== (client.serviceRate?.serviceType ?? "") ||
-      paymentTerms !== (client.serviceRate?.paymentTerms ?? "")
-    );
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    searchTimeout.current = setTimeout(async () => {
+      if (!value || value.length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        value
+      )}.json?access_token=${
+        process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+      }&country=ph&autocomplete=true&types=poi,address,place&proximity=123.8854,10.3157&bbox=123.80,10.20,124.00,10.50&limit=5&language=en`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      setSuggestions(data.features || []);
+      setShowSuggestions(true);
+    }, 350);
   };
 
-  /* ----------------------------------------
-     SAVE UPDATES
-  ---------------------------------------- */
+  const handleSuggestionClick = (item: any) => {
+    const [lng, lat] = item.center;
+    setPickUpLocation(item.place_name);
+    setPickUpLatLong(`${lat},${lng}`);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   const handleSave = async () => {
     setErrorMsg("");
     setSuccessMsg("");
-
-    if (!hasChanges()) {
-      setErrorMsg("No changes detected.");
-      return;
-    }
-
-    if (driverAndLoaderPerKgFee && isNaN(Number(driverAndLoaderPerKgFee))) {
-      setErrorMsg("Rate per KG must be a number.");
-      return;
-    }
-
-    if (clientServiceRate && isNaN(Number(clientServiceRate))) {
-      setErrorMsg("Client Service Rate must be a number.");
-      return;
-    }
-
-    if (minimumCharging && isNaN(Number(minimumCharging))) {
-      setErrorMsg("Minimum Charging must be a number.");
-      return;
-    }
 
     setSaving(true);
 
     try {
       await api.put(`/admin/client/${id}`, {
-        RegisteredCompanyName: registeredCompanyName,
         CodeName: codeName,
+        RegisteredCompanyName: registeredName,
         PickUpLocation: pickUpLocation,
-        PreferredHaulingSchedule: preferredHaulingSchedule,
-        DriverAndLoaderPerKgFee:
-          driverAndLoaderPerKgFee === "" ? null : Number(driverAndLoaderPerKgFee),
-
-        ClientServiceRate:
-          clientServiceRate === "" ? null : Number(clientServiceRate),
-
-        MinimumCharging:
-          minimumCharging === "" ? null : Number(minimumCharging),
-
-        // requires backend update:
+        PickUpLatLong: pickUpLatLong,
+        PreferredHaulingSchedule: preferredSchedule,
+        DriverAndLoaderPerKgFee: feePerKg ? Number(feePerKg) : null,
+        ClientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
+        MinimumCharging: minimumCharging ? Number(minimumCharging) : null,
         ServiceType: serviceType,
         PaymentTerms: paymentTerms,
       });
 
-      setSuccessMsg("Client information successfully updated!");
-
-      setTimeout(() => {
-        router.push("/admin/clients");
-      }, 1200);
+      setSuccessMsg("Client successfully updated!");
+      setTimeout(() => router.push("/admin/clients"), 1200);
     } catch {
       setErrorMsg("Failed to update client.");
     }
@@ -146,135 +137,145 @@ export default function ClientDetailsPage() {
     setSaving(false);
   };
 
-  /* ----------------------------------------
-     DELETE CLIENT
-  ---------------------------------------- */
-  const deleteClient = async () => {
-    const confirmDelete = confirm("Are you sure you want to delete this client?");
-    if (!confirmDelete) return;
-
-    try {
-      await api.delete(`/admin/client/${id}`);
-      setDeleteMsg("Client successfully deleted.");
-
-      setTimeout(() => {
-        router.push("/admin/clients");
-      }, 1200);
-
-    } catch (err: any) {
-      if (
-        err.response &&
-        err.response.status === 500 &&
-        err.response.data?.includes("FK_ClientServiceRate_Client")
-      ) {
-        setErrorMsg(
-          "This client cannot be deleted because it has existing assigned service rates."
-        );
-        return;
-      }
-
-      setErrorMsg("Failed to delete client.");
-    }
-  };
-
-  /* ----------------------------------------
-     UI STATES
-  ---------------------------------------- */
   if (loading) {
     return (
-      <div className="text-center py-10 text-gray-500 font-medium">
+      <div className="text-center py-10 text-gray-500">
         Loading client information...
       </div>
     );
   }
 
-  if (!client) {
-    return (
-      <div className="text-center py-10 text-red-500 font-medium">
-        Client not found.
-      </div>
-    );
-  }
-
-  /* ----------------------------------------
-     MAIN UI
-  ---------------------------------------- */
   return (
-    <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow border">
-
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">
-        Manage Client
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 border">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">
+        Edit Client
       </h1>
 
-      <p className="text-gray-500 text-sm mb-6">
-        Update client details or delete the client record.
-      </p>
-
-      {successMsg && (
-        <div className="p-3 mb-4 text-sm bg-green-100 text-green-700 border border-green-300 rounded">
-          {successMsg}
-        </div>
-      )}
-
-      {deleteMsg && (
-        <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded">
-          {deleteMsg}
-        </div>
-      )}
-
       {errorMsg && (
-        <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded">
+        <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 border">
           {errorMsg}
         </div>
       )}
 
+      {successMsg && (
+        <div className="mb-4 p-3 text-sm text-green-700 bg-green-100 border">
+          {successMsg}
+        </div>
+      )}
+
       <div className="space-y-6">
-        <FormGroup label="Registered Company Name" value={registeredCompanyName} onChange={setRegisteredCompanyName} />
+
         <FormGroup label="Code Name" value={codeName} onChange={setCodeName} />
-        <FormGroup label="Pick-up Location" value={pickUpLocation} onChange={setPickUpLocation} />
-        <FormGroup label="Preferred Hauling Schedule" value={preferredHaulingSchedule} onChange={setPreferredHaulingSchedule} />
-        <FormGroup label="Rate per KG (Driver + Loader)" value={driverAndLoaderPerKgFee} onChange={setDriverAndLoaderPerKgFee} type="number" />
 
-        {/* NEW FIELDS */}
-        <FormGroup label="Client Service Rate" value={clientServiceRate} onChange={setClientServiceRate} type="number" />
-        <FormGroup label="Minimum Charging" value={minimumCharging} onChange={setMinimumCharging} type="number" />
+        <FormGroup
+          label="Registered Company Name"
+          value={registeredName}
+          onChange={setRegisteredName}
+        />
 
-        {/* SERVICE RATE FIELDS */}
-        <FormGroup label="Service Type" value={serviceType} onChange={setServiceType} />
-        <FormGroup label="Payment Terms" value={paymentTerms} onChange={setPaymentTerms} />
+        {/* AUTOCOMPLETE FIELD */}
+        <div className="relative">
+          <FormGroup
+            label="Pick-up Location"
+            value={pickUpLocation}
+            onChange={handlePickupLocationChange}
+          />
+
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-50 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {suggestions.map((item: any, idx) => (
+                <li
+                  key={idx}
+                  onClick={() => handleSuggestionClick(item)}
+                  className="p-3 hover:bg-gray-100 cursor-pointer text-sm"
+                >
+                  {item.place_name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* MAP + COORDINATES */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pick-up Coordinates
+          </label>
+
+          <LeafletMap onSelect={setPickUpLatLong} latLong={pickUpLatLong} />
+
+          <input
+            type="text"
+            value={pickUpLatLong}
+            readOnly
+            className="w-full mt-2 border rounded-lg p-3 bg-gray-100"
+          />
+        </div>
+
+        <FormGroup
+          label="Preferred Schedule"
+          value={preferredSchedule}
+          onChange={setPreferredSchedule}
+        />
+
+        <FormGroup
+          label="Fee per KG (Driver & Loader)"
+          type="number"
+          value={feePerKg}
+          onChange={setFeePerKg}
+        />
+
+        <FormGroup
+          label="Client Service Rate (₱)"
+          type="number"
+          value={clientServiceRate}
+          onChange={setClientServiceRate}
+        />
+
+        <FormGroup
+          label="Minimum Charging (₱)"
+          type="number"
+          value={minimumCharging}
+          onChange={setMinimumCharging}
+        />
+
+        <FormGroup
+          label="Service Type"
+          value={serviceType}
+          onChange={setServiceType}
+        />
+
+        <FormGroup
+          label="Payment Terms"
+          value={paymentTerms}
+          onChange={setPaymentTerms}
+        />
+
       </div>
 
-      <div className="flex justify-between mt-10">
-        <button onClick={deleteClient} className="px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700">
-          Delete Client
-        </button>
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full mt-8 bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50"
+      >
+        {saving ? "Saving..." : "Save Changes"}
+      </button>
     </div>
   );
 }
 
-/* ----------------------------------------------
-   GENERIC INPUT COMPONENT
----------------------------------------------- */
-
-function FormGroup({ label, value, onChange, type = "text", placeholder = "" }: any) {
+function FormGroup({ label, value, onChange, type = "text", placeholder }: any) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
       <input
         type={type}
         value={value}
-        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition text-gray-700"
+        placeholder={placeholder}
+        className="w-full border rounded-lg p-3 shadow-sm"
       />
     </div>
   );
