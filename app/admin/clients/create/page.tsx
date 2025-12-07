@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { SearchBoxCore } from "@mapbox/search-js-core";
+
+const LeafletMap = dynamic(() => import("components/LeafletMap"), {
+  ssr: false,
+});
 
 export default function CreateClientPage() {
   const router = useRouter();
@@ -12,6 +18,12 @@ export default function CreateClientPage() {
   const [pickupLocation, setPickupLocation] = useState("");
   const [preferredSchedule, setPreferredSchedule] = useState("");
   const [feePerKg, setFeePerKg] = useState("");
+  const [pickUpLatLong, setPickUpLatLong] = useState("");
+
+  // Autocomplete states
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimeout = useRef<any>(null);
 
   // NEW FIELDS
   const [clientServiceRate, setClientServiceRate] = useState("");
@@ -21,6 +33,52 @@ export default function CreateClientPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // 🔍 MAPBOX AUTOCOMPLETE SEARCH
+  const handlePickupLocationChange = async (value: string) => {
+  setPickupLocation(value);
+
+  if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+  searchTimeout.current = setTimeout(async () => {
+    if (!value || value.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const lng = 123.8854; // Cebu City center
+    const lat = 10.3157;
+
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+      value
+    )}.json?access_token=${
+      process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+    }&country=ph&autocomplete=true&types=poi,address,place&proximity=123.8854,10.3157&bbox=123.80,10.20,124.00,10.50&limit=5&language=en`;
+
+
+    console.log("MAPBOX QUERY:", url); // Debugging
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    setSuggestions(data.features || []);
+    setShowSuggestions(true);
+  }, 350);
+};
+
+
+  // 📌 When user selects a suggestion
+  const handleSuggestionClick = (item: any) => {
+  const [lng, lat] = item.center; // Mapbox format is [lng, lat]
+
+  setPickupLocation(item.place_name);
+  setPickUpLatLong(`${lat},${lng}`);
+
+  setSuggestions([]);
+  setShowSuggestions(false);
+};
+
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -35,17 +93,13 @@ export default function CreateClientPage() {
         preferredHaulingSchedule: preferredSchedule,
         driverAndLoaderPerKgFee: Number(feePerKg),
 
-        // NEW FIELDS
-        clientServiceRate: clientServiceRate
-          ? Number(clientServiceRate)
-          : null,
-
-        minimumCharging: minimumCharging
-          ? Number(minimumCharging)
-          : null,
-
+        clientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
+        minimumCharging: minimumCharging ? Number(minimumCharging) : null,
         serviceType: serviceType || null,
         paymentTerms: paymentTerms || null,
+
+        // include coordinates
+        pickUpLatLong,
       });
 
       router.push("/admin/clients");
@@ -58,12 +112,10 @@ export default function CreateClientPage() {
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 border">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        Create New Client
-      </h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Create New Client</h1>
 
       {error && (
-        <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 border border-red-300 rounded">
+        <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 border">
           {error}
         </div>
       )}
@@ -75,11 +127,46 @@ export default function CreateClientPage() {
           value={registeredName}
           onChange={setRegisteredName}
         />
-        <FormGroup
-          label="Pick-up Location"
-          value={pickupLocation}
-          onChange={setPickupLocation}
-        />
+
+        {/* AUTOCOMPLETE INPUT */}
+        <div className="relative">
+          <FormGroup
+            label="Pick-up Location"
+            value={pickupLocation}
+            onChange={handlePickupLocationChange}
+          />
+
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-50 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {suggestions.map((item: any, idx) => (
+                <li
+                  key={idx}
+                  onClick={() => handleSuggestionClick(item)}
+                  className="p-3 hover:bg-gray-100 cursor-pointer text-sm"
+                >
+                  {item.place_name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* MAP + COORDINATES */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pick-up Coordinates (Auto + Map Sync)
+          </label>
+
+          <LeafletMap onSelect={setPickUpLatLong} latLong={pickUpLatLong} />
+
+          <input
+            type="text"
+            value={pickUpLatLong}
+            readOnly
+            className="w-full mt-2 border rounded-lg p-3 bg-gray-100"
+          />
+        </div>
+
         <FormGroup
           label="Preferred Schedule"
           value={preferredSchedule}
@@ -92,7 +179,6 @@ export default function CreateClientPage() {
           onChange={setFeePerKg}
         />
 
-        {/* NEW FIELDS */}
         <FormGroup
           label="Client Service Rate (₱)"
           value={clientServiceRate}
@@ -111,21 +197,18 @@ export default function CreateClientPage() {
           label="Service Type"
           value={serviceType}
           onChange={setServiceType}
-          placeholder="Ex: Regular Hauling, Special Hauling"
         />
 
         <FormGroup
           label="Payment Terms"
           value={paymentTerms}
           onChange={setPaymentTerms}
-          placeholder="Ex: 15 Days, 30 Days"
         />
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold 
-          shadow hover:bg-indigo-700 transition disabled:opacity-50"
+          className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50"
         >
           {loading ? "Saving..." : "Save Client"}
         </button>
@@ -137,17 +220,13 @@ export default function CreateClientPage() {
 function FormGroup({ label, value, onChange, type = "text", placeholder }: any) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-lg p-3 
-          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
-          transition shadow-sm text-gray-700"
+        className="w-full border rounded-lg p-3 shadow-sm"
       />
     </div>
   );

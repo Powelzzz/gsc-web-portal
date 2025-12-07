@@ -1,55 +1,73 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 
+// === TRIP TYPE ===
+interface Trip {
+  id: number;
+  driver: string;
+  truck: string;
+  client: string;
+  status: string;
+  date: string; // ISO string from API
+}
+
 export default function TripOverviewList() {
-  const trips = [
-    {
-      id: 301,
-      driver: "Juan Dela Cruz",
-      truck: "ABC-1234",
-      client: "Jollibee MEPZ",
-      status: "Completed",
-      date: "2025-12-02",
-    },
-    {
-      id: 302,
-      driver: "Mark Santos",
-      truck: "XYZ-5678",
-      client: "Robinsons Galleria",
-      status: "In Progress",
-      date: "2025-12-05",
-    },
-    {
-      id: 303,
-      driver: "Aldrin Chua",
-      truck: "GHI-9988",
-      client: "Mandaue Foam",
-      status: "On The Way",
-      date: "2025-12-10",
-    },
-  ];
+  const API_URL = "http://localhost:5001/api/Admin";
 
-  // === TODAY ===
-  const today = new Date().toISOString().split("T")[0]; // yyyy-mm-dd
+  // === STATE ===
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // === FILTERS ===
+  // === LOAD TRIPS FROM API ===
+  useEffect(() => {
+    async function loadTrips() {
+      try {
+        const token = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("gc_token="))
+          ?.split("=")[1];
+
+        const res = await fetch(`${API_URL}/haulingtrip`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to load trips");
+
+        const data: Trip[] = await res.json();
+        setTrips(data);
+      } catch (err) {
+        console.error("Error loading trips:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadTrips();
+  }, [API_URL]);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  // === FILTER STATES ===
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDriver, setFilterDriver] = useState("All");
 
+  // === BADGE COLORS ===
   const badge = (status: string) => {
     if (status === "Completed") return "bg-green-600";
     if (status === "In Progress") return "bg-blue-600";
     return "bg-yellow-600";
   };
 
-  // === SORTING + FILTERING LOGIC ===
-  const filteredTrips = useMemo(() => {
+  // === SORT + FILTER ===
+  const filteredTrips = useMemo<Trip[]>(() => {
     let list = [...trips];
 
-    // Filter by search
+    // Search by client
     if (search.trim()) {
       list = list.filter((t) =>
         t.client.toLowerCase().includes(search.toLowerCase())
@@ -74,16 +92,15 @@ export default function TripOverviewList() {
       if (aIsToday && !bIsToday) return -1;
       if (!aIsToday && bIsToday) return 1;
 
-      const aDate = new Date(a.date);
-      const bDate = new Date(b.date);
-
-      return aDate.getTime() - bDate.getTime();
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
 
     return list;
-  }, [search, filterStatus, filterDriver, today]);
+  }, [trips, search, filterStatus, filterDriver, today]);
 
   const allDrivers = ["All", ...new Set(trips.map((t) => t.driver))];
+
+  if (loading) return <p>Loading trips...</p>;
 
   return (
     <div>
@@ -91,7 +108,6 @@ export default function TripOverviewList() {
 
       {/* FILTERS */}
       <div className="bg-white p-4 shadow mb-6 rounded-lg flex flex-wrap gap-4">
-
         {/* Search */}
         <input
           type="text"
