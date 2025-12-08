@@ -251,15 +251,6 @@ function AccountingSidebar({
                 label="Collected Payments Report"
               />
             )}
-
-            {hasPermission("collections.view_deposits") && (
-              <SidebarItem
-                open={open}
-                href="/accounting/payments/deposits"
-                icon={<FolderKanban size={20} />}
-                label="Deposit Slips"
-              />
-            )}
           </>
         )}
 
@@ -269,15 +260,6 @@ function AccountingSidebar({
           hasPermission("reports.soa")) && (
           <>
             <SidebarSection open={open} title="Reports" />
-
-            {hasPermission("reports.ar_paid_accounts") && (
-              <SidebarItem
-                open={open}
-                href="/accounting/reports/payment-collections"
-                icon={<FileBarChart size={20} />}
-                label="Payment Collection Reports"
-              />
-            )}
 
             {hasPermission("reports.ar_unpaid_accounts") && (
               <SidebarItem
