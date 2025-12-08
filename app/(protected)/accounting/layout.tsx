@@ -39,16 +39,41 @@ export default function AccountingLayout({ children }: { children: React.ReactNo
 /*                   ACCOUNTING SIDEBAR                          */
 /* ============================================================= */
 
-function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
+function AccountingSidebar({
+  open,
+  setOpen,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
+  const [hydrated, setHydrated] = useState(false);
+  const [isMessenger, setIsMessenger] = useState(false);
+
+  /* ────────────────────────────────────────────── */
+  /* HYDRATION FIX — LOAD AFTER CLIENT MOUNT        */
+  /* ────────────────────────────────────────────── */
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setFirstName(localStorage.getItem("gc_user_firstname") ?? "");
-      setLastName(localStorage.getItem("gc_user_lastname") ?? "");
-    }
+    setFirstName(localStorage.getItem("gc_user_firstname") ?? "");
+    setLastName(localStorage.getItem("gc_user_lastname") ?? "");
+
+    const messengerCheck =
+      hasPermission("invoices.upload_sent") &&
+      !hasPermission("clients.update_rates");
+
+    setIsMessenger(messengerCheck);
+
+    setHydrated(true);
   }, []);
+
+  /* ────────────────────────────────────────────── */
+  /* PREVENT SSR MISMATCH                          */
+  /* ────────────────────────────────────────────── */
+  if (!hydrated) {
+    return <aside className="w-20 h-screen bg-white border-r" />;
+  }
 
   const handleLogout = () => {
     localStorage.clear();
@@ -58,14 +83,9 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
   };
 
   /* ============================================================= */
-  /*                    DETECT MESSENGER ROLE                      */
+  /*                        MESSENGER SIDEBAR                      */
   /* ============================================================= */
 
-  const isMessenger =
-    hasPermission("invoices.upload_sent") &&
-    !hasPermission("clients.update_rates"); // Messenger does NOT have this
-
-  /* MESSENGER-SPECIFIC SIDEBAR (returns early) */
   if (isMessenger) {
     return (
       <aside
@@ -75,7 +95,6 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
           ${open ? "w-64" : "w-20"}
         `}
       >
-        {/* Toggle */}
         <button
           onClick={() => setOpen(!open)}
           className="mb-6 text-gray-600 hover:text-black transition"
@@ -83,7 +102,6 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
           <Menu size={22} />
         </button>
 
-        {/* PROFILE */}
         <div className="flex items-center gap-3 mb-8">
           <img src="/avatar.png" alt="Profile" className="w-10 h-10 rounded-full border" />
           {open && (
@@ -101,14 +119,8 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
           )}
         </div>
 
-        {/* MESSENGER MENU */}
         <nav className="space-y-1">
-          <SidebarItem
-            open={open}
-            href="/accounting"
-            icon={<Home size={20} />}
-            label="Dashboard"
-          />
+          <SidebarItem open={open} href="/accounting" icon={<Home size={20} />} label="Dashboard" />
 
           <SidebarSection open={open} title="Messenger Tasks" />
 
@@ -131,7 +143,7 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
   }
 
   /* ============================================================= */
-  /*             FULL ACCOUNTING SIDEBAR (AR, AP, SUPERADMIN)      */
+  /*                FULL ACCOUNTING SIDEBAR (AR/AP/ADMIN)          */
   /* ============================================================= */
 
   return (
@@ -142,7 +154,6 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
         ${open ? "w-64" : "w-20"}
       `}
     >
-      {/* Toggle */}
       <button
         onClick={() => setOpen(!open)}
         className="mb-6 text-gray-600 hover:text-black transition"
@@ -150,7 +161,6 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
         <Menu size={22} />
       </button>
 
-      {/* PROFILE */}
       <div className="flex items-center gap-3 mb-8">
         <img src="/avatar.png" alt="Profile" className="w-10 h-10 rounded-full border" />
         {open && (
@@ -168,10 +178,7 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
         )}
       </div>
 
-      {/* MENU */}
       <nav className="space-y-1">
-
-        {/* DASHBOARD ALWAYS VISIBLE */}
         <SidebarItem open={open} href="/accounting" icon={<Home size={20} />} label="Dashboard" />
 
         {/* RATES */}
@@ -201,6 +208,14 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
               />
             )}
 
+            {/* NEW: Invoice List */}
+            <SidebarItem
+              open={open}
+              href="/accounting/invoices"
+              icon={<FileBarChart size={20} />}
+              label="Invoice List"
+            />
+
             {hasPermission("invoices.upload_sent") && (
               <SidebarItem
                 open={open}
@@ -213,7 +228,7 @@ function AccountingSidebar({ open, setOpen }: { open: boolean; setOpen: (v: bool
         )}
 
         {/* PAYMENTS */}
-        {(hasPermission("collections.upload_receipt") || 
+        {(hasPermission("collections.upload_receipt") ||
           hasPermission("collections.view_paid_report") ||
           hasPermission("collections.view_deposits")) && (
           <>

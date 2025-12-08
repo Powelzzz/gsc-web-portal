@@ -2,334 +2,415 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { FaUpload, FaPlusCircle, FaHistory } from "react-icons/fa";
 
-export default function GenerateBillingPage() {
-  // ===============================
-  // BILLING FORM
-  // ===============================
-  const [clientId, setClientId] = useState("");
-  const [serviceType, setServiceType] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [rate, setRate] = useState("");
-  const [amount, setAmount] = useState("");
-  const [receiptNo, setReceiptNo] = useState("");
+type TripItem = {
+  id: number;
+  pickUpDate: string;
+  receiptNumber: string | null;
+  weightHauled: number;
+  wasteType: string | null;
+};
 
-  // ===============================
-  // LISTS
-  // ===============================
-  const [clients, setClients] = useState<any[]>([]);
-  const [serviceTypes, setServiceTypes] = useState<any[]>([]);
-  const [haulingTrips, setHaulingTrips] = useState<any[]>([]);
-  const [selectedTripIds, setSelectedTripIds] = useState<number[]>([]);
-  const [invoiceHistory, setInvoiceHistory] = useState<any[]>([]);
+type ServiceRate = {
+  id: number;
+  clientId: number;
+  serviceType: string;
+  ratePerKg: string;
+  paymentTerms: string;
+};
 
-  // ===============================
-  // UPLOAD
-  // ===============================
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [receiverName, setReceiverName] = useState("");
-  const [invoiceNo, setInvoiceNo] = useState("");
+type Client = {
+  id: number;
+  codeName: string;
+  registeredCompanyName: string;
+};
 
-  // ===============================
-  // LOAD INITIAL DATA
-  // ===============================
+export default function BillingGeneratePage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState("");
+
+  const [serviceType, setServiceType] = useState("Hauling");
+  const [billableTrips, setBillableTrips] = useState<TripItem[]>([]);
+  const [selectedTrips, setSelectedTrips] = useState<TripItem[]>([]);
+
+  const [activeRate, setActiveRate] = useState<ServiceRate | null>(null);
+
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [loadingRate, setLoadingRate] = useState(false);
+
+  const [withholding, setWithholding] = useState(0);
+  const vatRate = 0.12;
+
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceError, setInvoiceError] = useState("");
+  const [savingInvoice, setSavingInvoice] = useState(false);
+
+  // LOAD ALL CLIENTS
   useEffect(() => {
+    async function loadClients() {
+      try {
+        const res = await api.get("/admin/client");
+        setClients(res.data);
+      } catch (err) {
+        console.error("Failed to load clients", err);
+      } finally {
+        setLoadingClients(false);
+      }
+    }
     loadClients();
-    loadServiceRates();
-    loadHaulingTrips();
-    loadInvoiceHistory();
   }, []);
 
-  const loadClients = async () => {
-    const res = await api.get("/Admin/client");
-    setClients(res.data);
-  };
-
-  const loadServiceRates = async () => {
-    const res = await api.get("/Accounting/rates");
-    setServiceTypes(res.data);
-  };
-
-  const loadHaulingTrips = async () => {
-    const res = await api.get("/Admin/haulingtrip");
-    setHaulingTrips(res.data);
-  };
-
-  const loadInvoiceHistory = async () => {
-    const res = await api.get("/Accounting/invoices");
-    setInvoiceHistory(res.data);
-  };
-
-  // ===============================
-  // AUTO CALCULATE AMOUNT
-  // ===============================
+  // LOAD BILLABLE TRIPS + ACTIVE RATE WHEN CLIENT CHANGES
   useEffect(() => {
-    if (!quantity || !rate) return setAmount("");
-    const q = parseFloat(quantity);
-    const r = parseFloat(rate);
-    if (!isNaN(q) && !isNaN(r)) setAmount((q * r).toFixed(2));
-  }, [quantity, rate]);
-
-  // ===============================
-  // GENERATE INVOICE
-  // ===============================
-  const generateInvoice = async () => {
-    try {
-      const dto = {
-        clientId: parseInt(clientId),
-        haulingTripIds: selectedTripIds,
-        serviceType,
-        invoiceNo: receiptNo,
-        withheldTaxAmount: "0",
-      };
-
-      await api.post("/Accounting/invoices/generate", dto);
-      alert("Invoice generated successfully!");
-      loadInvoiceHistory();
-    } catch {
-      alert("Error generating invoice.");
+    if (!selectedClient) {
+      setBillableTrips([]);
+      setSelectedTrips([]);
+      setActiveRate(null);
+      return;
     }
-  };
 
-  // ===============================
-  // UPLOAD BILLING SENT INFO
-  // ===============================
-  const uploadBillingInfo = async () => {
-    if (!file) return alert("Please select an image first.");
+    async function loadTrips() {
+      try {
+        setLoadingTrips(true);
+        const res = await api.get(`/accounting/billable-trips?clientId=${selectedClient}`);
+        setBillableTrips(res.data);
+        setSelectedTrips([]);
+      } catch (err) {
+        console.error("Failed to load billable trips", err);
+        setBillableTrips([]);
+      } finally {
+        setLoadingTrips(false);
+      }
+    }
 
-    const formData = new FormData();
-    formData.append("file", file);
+    async function loadActiveRate() {
+      try {
+        setLoadingRate(true);
+        const res = await api.get("/accounting/rates", {
+          params: { clientId: selectedClient, activeOnly: true },
+        });
 
-    const uploadRes = await api.post("/upload/invoice-image", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress: (p) => {
-        const total = p.total || 1;
-        setUploadProgress(Math.round((p.loaded * 100) / total));
-      },
-    });
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setActiveRate(res.data[0]);
+        } else {
+          setActiveRate(null);
+        }
+      } catch (err) {
+        console.error("Failed to load active rate", err);
+        setActiveRate(null);
+      } finally {
+        setLoadingRate(false);
+      }
+    }
 
-    const dto = {
-      receiverFullName: receiverName,
-      sentInvoiceImagePath: uploadRes.data.filePath,
+    loadTrips();
+    loadActiveRate();
+  }, [selectedClient]);
+
+  // SELECT / UNSELECT TRIPS
+  function toggleTrip(trip: TripItem) {
+    const exists = selectedTrips.some((t) => t.id === trip.id);
+    if (exists) {
+      setSelectedTrips((prev) => prev.filter((t) => t.id !== trip.id));
+    } else {
+      setSelectedTrips((prev) => [...prev, trip]);
+    }
+  }
+
+  // COMPUTATIONS
+  function computeSubtotal() {
+    if (!activeRate) return 0;
+    const rate = parseFloat(activeRate.ratePerKg);
+    return selectedTrips.reduce((sum, t) => sum + (t.weightHauled ?? 0) * rate, 0);
+  }
+
+  const subtotal = computeSubtotal();
+  const vat = subtotal * vatRate;
+  const total = subtotal + vat - withholding;
+
+  // ------------------------------------------------------------
+  // STEP 3: GENERATE INVOICE FUNCTION
+  // ------------------------------------------------------------
+  async function handleGenerateInvoice() {
+    setInvoiceError("");
+
+    // VALIDATIONS
+    if (!selectedClient) return setInvoiceError("Please select a client.");
+    if (!invoiceNumber.trim()) return setInvoiceError("Invoice number is required.");
+    if (selectedTrips.length === 0)
+      return setInvoiceError("Please select at least one hauling trip.");
+    if (!activeRate)
+      return setInvoiceError("No active rate found for this client.");
+
+    const payload = {
+      clientId: Number(selectedClient),
+      haulingTripIds: selectedTrips.map((t) => t.id),
+      serviceType,
+      invoiceNo: invoiceNumber,
+      withheldTaxAmount: withholding.toString(),
     };
 
-    await api.post(`/Accounting/invoices/${invoiceNo}/sent`, dto);
+    try {
+      setSavingInvoice(true);
+      console.log("Payload sending:", payload);
+      const res = await api.post("/accounting/invoices/generate", payload);
 
-    alert("Billing info uploaded!");
+      console.log("Invoice created:", res.data);
+      alert("Invoice successfully generated!");
 
-    setPreview(null);
-    setUploadProgress(0);
-    setFile(null);
-    setReceiverName("");
-    setInvoiceNo("");
+      // Reset UI
+      setInvoiceNumber("");
+      setSelectedTrips([]);
+    } catch (err) {
+      console.error("Failed to generate invoice", err);
+      alert("Failed to generate invoice.");
+    } finally {
+      setSavingInvoice(false);
+    }
+  }
 
-    loadInvoiceHistory();
-  };
-
+  // RENDER UI
   return (
-    <div className="p-6 space-y-10">
-
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <FaPlusCircle /> Billing & Invoice Module
-        </h1>
-        <p className="text-blue-100 mt-1">
-          Create invoices, upload sent billing photos, and view full invoice history.
+    <div className="p-6 space-y-8">
+      {/* TITLE */}
+      <header>
+        <h1 className="text-2xl font-bold text-gray-800">Generate Billing / Invoice</h1>
+        <p className="text-gray-500 text-sm">
+          Select client and hauling trips to automatically generate a billing invoice.
         </p>
-      </div>
+      </header>
 
-      {/* CREATE INVOICE */}
-      <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">Create New Invoice</h2>
+      {/* CLIENT INFO */}
+      <section className="bg-white p-6 rounded-xl shadow border">
+        <h2 className="text-lg font-semibold mb-4">Client Information</h2>
 
-        {/* CLIENT */}
-        <label className="label">Client</label>
-        <select
-          className="input mb-3"
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-        >
-          <option value="">Select Client</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.CodeName}
-            </option>
-          ))}
-        </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* CLIENT SELECT */}
+          <div>
+            <label className="text-sm font-medium">Client</label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="w-full mt-1 border rounded-lg px-3 py-2"
+            >
+              <option value="">Select Client</option>
+              {loadingClients ? (
+                <option>Loading...</option>
+              ) : (
+                clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.codeName || c.registeredCompanyName}
+                  </option>
+                ))
+              )}
+            </select>
 
-        {/* SERVICE TYPE */}
-        <label className="label">Service Type</label>
-        <select
-          className="input mb-3"
-          value={serviceType}
-          onChange={(e) => setServiceType(e.target.value)}
-        >
-          <option value="">Select Service</option>
-          {serviceTypes.map((s) => (
-            <option key={s.id} value={s.serviceType}>
-              {s.serviceType}
-            </option>
-          ))}
-        </select>
+            {/* ACTIVE RATE DISPLAY */}
+            <div className="mt-3 text-sm text-gray-600">
+              {loadingRate && selectedClient && (
+                <span className="italic text-gray-400">Loading active rate…</span>
+              )}
 
-        {/* HAULING TRIPS */}
-        <label className="label">Hauling Trips</label>
-        <select
-          multiple
-          className="input h-36 mb-3"
-          onChange={(e) =>
-            setSelectedTripIds(
-              Array.from(e.target.selectedOptions, (o) => parseInt(o.value))
-            )
-          }
-        >
-          {haulingTrips
-            .filter((t) => t.clientId === parseInt(clientId))
-            .map((t) => (
-              <option key={t.id} value={t.id}>
-                Trip #{t.id} — {t.weightHauled} kg
-              </option>
-            ))}
-        </select>
+              {!loadingRate && selectedClient && activeRate && (
+                <div className="space-y-1">
+                  <p>
+                    <strong>Active Rate:</strong> ₱ {parseFloat(activeRate.ratePerKg).toFixed(2)} / kg
+                  </p>
+                  <p>
+                    <strong>Service Type:</strong> {activeRate.serviceType}
+                  </p>
+                  <p>
+                    <strong>Payment Terms:</strong> {activeRate.paymentTerms}
+                  </p>
+                </div>
+              )}
 
-        {/* WEIGHT / RATE / AUTO AMOUNT */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {!loadingRate && selectedClient && !activeRate && (
+                <span className="text-red-500 text-xs">No active service rate found for this client.</span>
+              )}
+            </div>
+          </div>
+
+          {/* SERVICE TYPE UI ONLY */}
+          <div>
+            <label className="text-sm font-medium">Service Type (UI Only)</label>
+            <select
+              value={serviceType}
+              onChange={(e) => setServiceType(e.target.value)}
+              className="w-full mt-1 border rounded-lg px-3 py-2"
+            >
+              <option>Hauling</option>
+              <option>Bulk Waste</option>
+              <option>Recyclables Pickup</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* BILLABLE TRIPS TABLE */}
+      <section className="bg-white p-6 rounded-xl shadow border">
+        <h2 className="text-lg font-semibold mb-4">Select Hauling Trips</h2>
+
+        {loadingTrips ? (
+          <div className="text-gray-500 italic">Loading trips...</div>
+        ) : billableTrips.length === 0 ? (
+          <div className="text-gray-400 italic">No billable trips available.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-2 py-2 text-center w-12">✔</th>
+                  <th className="border px-2 py-2">Pick-up Date</th>
+                  <th className="border px-2 py-2">WM No.</th>
+                  <th className="border px-2 py-2 text-right">Weight (kg)</th>
+                  <th className="border px-2 py-2">Waste Type</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {billableTrips.map((trip) => {
+                  const isSelected = selectedTrips.some((t) => t.id === trip.id);
+                  return (
+                    <tr
+                      key={trip.id}
+                      className={`border-t hover:bg-gray-50 ${isSelected ? "bg-indigo-50" : ""}`}
+                    >
+                      <td className="text-center border">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleTrip(trip)}
+                        />
+                      </td>
+
+                      <td className="px-2 py-2">{trip.pickUpDate.substring(0, 10)}</td>
+                      <td className="px-2 py-2">{trip.receiptNumber || "–"}</td>
+                      <td className="px-2 py-2 text-right">{trip.weightHauled}</td>
+                      <td className="px-2 py-2">{trip.wasteType || "–"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* INVOICE PREVIEW */}
+      <section className="bg-white p-6 rounded-xl shadow border">
+        <h2 className="text-lg font-semibold mb-4">Invoice Preview</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+          {/* INVOICE DATE */}
+          <div>
+            <label className="text-sm font-medium">Invoice Date</label>
+            <input type="date" className="w-full mt-1 border rounded-lg px-3 py-2" />
+          </div>
+
+          {/* INVOICE NUMBER */}
+          <div>
+            <label className="text-sm font-medium">Invoice Number</label>
+            <input
+              type="text"
+              value={invoiceNumber}
+              onChange={(e) => {
+                setInvoiceNumber(e.target.value);
+                setInvoiceError("");
+              }}
+              placeholder="Enter Invoice Number"
+              className={`w-full mt-1 border rounded-lg px-3 py-2 ${
+                invoiceError ? "border-red-500" : ""
+              }`}
+            />
+            {invoiceError && (
+              <p className="text-red-500 text-xs mt-1">{invoiceError}</p>
+            )}
+          </div>
+
+          {/* PAYMENT TERMS */}
+          <div>
+            <label className="text-sm font-medium">Payment Terms</label>
+            <input
+              type="text"
+              value={activeRate?.paymentTerms || ""}
+              readOnly
+              className="w-full mt-1 border rounded-lg px-3 py-2 bg-gray-100"
+            />
+          </div>
+        </div>
+
+        {/* PREVIEW TABLE */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border px-2 py-2">Pick-up Date</th>
+                <th className="border px-2 py-2">Weight (kg)</th>
+                <th className="border px-2 py-2">Rate per KG</th>
+                <th className="border px-2 py-2">Amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {selectedTrips.map((trip) => {
+                const rate = activeRate ? parseFloat(activeRate.ratePerKg) : 0;
+                const amount = trip.weightHauled * rate;
+
+                return (
+                  <tr key={trip.id} className="border-t">
+                    <td className="px-2 py-2">{trip.pickUpDate.substring(0, 10)}</td>
+                    <td className="px-2 py-2 text-right">{trip.weightHauled}</td>
+                    <td className="px-2 py-2 text-right">₱ {rate.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-right">₱ {amount.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* SUMMARY */}
+      <section className="bg-white p-6 rounded-xl shadow border w-full md:w-1/2 ml-auto">
+        <h2 className="text-lg font-semibold mb-4">Summary</h2>
+
+        <div className="flex justify-between py-1">
+          <span>Subtotal</span>
+          <span>₱ {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+        </div>
+
+        <div className="flex justify-between py-1">
+          <span>VAT (12%)</span>
+          <span>₱ {vat.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+        </div>
+
+        <div className="flex justify-between items-center py-1">
+          <span>Withholding Tax</span>
           <input
-            className="input"
-            placeholder="Weight (kg)"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-          />
-
-          <input
-            className="input"
-            placeholder="Rate"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-          />
-
-          <input
-            className="input bg-gray-100 font-semibold"
-            placeholder="Amount (auto)"
-            value={amount}
-            readOnly
+            type="number"
+            value={withholding}
+            onChange={(e) => setWithholding(parseFloat(e.target.value || "0"))}
+            className="w-32 border rounded px-2 py-1 text-right"
           />
         </div>
 
-        {/* RECEIPT NO */}
-        <input
-          className="input mt-4"
-          placeholder="Receipt No"
-          value={receiptNo}
-          onChange={(e) => setReceiptNo(e.target.value)}
-        />
+        <div className="flex justify-between py-2 border-t font-semibold text-lg">
+          <span>Total</span>
+          <span>₱ {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+        </div>
+      </section>
 
-        <button onClick={generateInvoice} className="btn-primary mt-6">
-          <FaPlusCircle /> Generate Invoice
-        </button>
-      </div>
-
-      {/* INVOICE HISTORY */}
-      <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center gap-3">
-          <FaHistory /> Invoice History
-        </h2>
-
-        <table className="w-full border rounded-lg overflow-hidden">
-          <thead className="bg-gray-100 text-gray-700">
-            <tr>
-              <th className="p-3 border">Invoice No</th>
-              <th className="p-3 border">Client</th>
-              <th className="p-3 border">Amount</th>
-              <th className="p-3 border">Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {invoiceHistory.map((inv, i) => (
-              <tr
-                key={inv.id}
-                className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
-              >
-                <td className="p-3 border">{inv.invoiceNo}</td>
-                <td className="p-3 border">{inv.clientId}</td>
-                <td className="p-3 border text-green-700 font-semibold">
-                  {inv.netAmount}
-                </td>
-                <td className="p-3 border">
-                  {inv.dateSent ? (
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                      Sent
-                    </span>
-                  ) : (
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">
-                      Pending
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* UPLOAD BILLING INFO */}
-      <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">Upload Billing Information</h2>
-
-        <input
-          className="input mb-3"
-          placeholder="Invoice No"
-          value={invoiceNo}
-          onChange={(e) => setInvoiceNo(e.target.value)}
-        />
-
-        <input
-          className="input mb-3"
-          placeholder="Receiver Name"
-          value={receiverName}
-          onChange={(e) => setReceiverName(e.target.value)}
-        />
-
-        <label className="label">Upload Image</label>
-        <input
-          type="file"
-          className="input"
-          onChange={(e) => {
-            const f = e.target.files?.[0] || null;
-            setFile(f);
-            setPreview(f ? URL.createObjectURL(f) : null);
-          }}
-        />
-
-        {preview && (
-          <img
-            src={preview}
-            className="mt-4 h-48 rounded-xl border object-cover shadow"
-          />
-        )}
-
-        {uploadProgress > 0 && (
-          <div className="mt-4 bg-gray-200 h-3 rounded-full overflow-hidden">
-            <div
-              className="bg-blue-600 h-3"
-              style={{ width: `${uploadProgress}%` }}
-            ></div>
-          </div>
-        )}
-
+      {/* GENERATE BUTTON */}
+      <div className="flex justify-end">
         <button
-          onClick={uploadBillingInfo}
-          disabled={!file}
-          className={`btn-primary mt-6 flex items-center gap-2 ${
-            !file ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          onClick={handleGenerateInvoice}
+          disabled={savingInvoice}
+          className={`px-6 py-3 rounded-lg shadow font-medium text-white 
+            ${savingInvoice ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"}`}
         >
-          <FaUpload /> Upload Billing Info
+          {savingInvoice ? "Generating..." : "Generate Invoice"}
         </button>
       </div>
     </div>

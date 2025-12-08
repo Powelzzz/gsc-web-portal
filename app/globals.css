@@ -81,3 +81,41 @@ body {
   100% { transform: translateX(0px); }
 }
 
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #print-area, #print-area * {
+    visibility: visible !important;
+  }
+
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    padding: 20px !important;
+  }
+
+  /* Remove sidebar margin */
+  .ml-64, .ml-20 {
+    margin-left: 0 !important;
+  }
+
+  /* Force A4 printing */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+
+
+
