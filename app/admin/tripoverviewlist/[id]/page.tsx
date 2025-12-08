@@ -1,31 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock, Camera, MapPin, Truck, FileCheck } from "lucide-react";
 
 export default function TripOverviewDetailsPage() {
   const { id } = useParams();
+
+  // --------------------------------------------------
+  // STATE HOOKS (must be first)
+  // --------------------------------------------------
   const [trip, setTrip] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const fullUrl = (p: string) => `${API_URL}${p}`;
 
-  /* ---------------------------------------------------------
-      LOAD TRIP + ACTIVITY LOGS
-  ---------------------------------------------------------- */
+  // --------------------------------------------------
+  // FETCH TRIP + LOGS
+  // --------------------------------------------------
   useEffect(() => {
     if (!id) return;
 
     const load = async () => {
       try {
-        const tripRes = await api.get(`/admin/haulingtrip/${id}/details`);
-        const logRes = await api.get(`/admin/trip/${id}/activity`);
+        const [tripRes, logRes] = await Promise.all([
+          api.get(`/admin/haulingtrip/${id}/details`),
+          api.get(`/admin/trip/${id}/activity`)
+        ]);
 
         setTrip(tripRes.data);
         setLogs(logRes.data.logs || []);
@@ -38,95 +45,133 @@ export default function TripOverviewDetailsPage() {
     load();
   }, [id]);
 
+  // --------------------------------------------------
+  // ICON SELECTOR — safe version
+  // --------------------------------------------------
+  function chooseIcon(action: any) {
+    if (!action || typeof action !== "string") {
+      return <Clock className="text-gray-400" size={20} />;
+    }
+
+    if (action.includes("OnTheWay")) return <Truck className="text-blue-600" size={20} />;
+    if (action.includes("Arrive")) return <MapPin className="text-green-600" size={20} />;
+    if (action.includes("StartHauling")) return <Truck className="text-orange-500" size={20} />;
+    if (action.includes("DoneHauling")) return <Camera className="text-purple-600" size={20} />;
+    if (action.includes("EncodeDelivery")) return <FileCheck className="text-amber-600" size={20} />;
+    if (action.includes("Finish")) return <Truck className="text-gray-700" size={20} />;
+
+    return <Clock className="text-gray-400" size={20} />;
+  }
+
+  // --------------------------------------------------
+  // TIMELINE BUILDER — fully aligned to flow chart
+  // --------------------------------------------------
+  const timelineSteps = useMemo(() => {
+    if (!trip || !logs) return [];
+
+    const sortedLogs = [...logs].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    return sortedLogs.map((log) => {
+      const images: string[] = [];
+      const action = log.action ?? ""; // SAFE fallback
+
+      switch (action) {
+        /* 1️⃣ DRIVER ON THE WAY */
+        case "OnTheWayToClient":
+          if (trip.truckDashboardPicture)
+            images.push(fullUrl(`/Uploads/TruckDashboards/${trip.truckDashboardPicture}`));
+          break;
+
+        /* 2️⃣ DRIVER ARRIVES AT CLIENT */
+        case "ArriveAtClient":
+          images.push(
+            ...(trip.beforePictures ?? []).map(
+              (p: string) => fullUrl(`/Uploads/BeforeHaulingMRF/${p}`)
+            ),
+            ...(trip.driversAndLoadersPictures ?? []).map(
+              (p: string) => fullUrl(`/Uploads/DriversLoaders/${p}`)
+            )
+          );
+          break;
+
+        /* 3️⃣ START HAULING */
+        case "StartHauling":
+          break;
+
+        /* 4️⃣ DONE HAULING */
+        case "DoneHauling":
+          images.push(
+            ...(trip.afterPictures ?? []).map(
+              (p: string) => fullUrl(`/Uploads/AfterHauling/${p}`)
+            )
+          );
+
+          if (trip.clientRepresentativePicture)
+            images.push(fullUrl(`/Uploads/ClientRepAfter/${trip.clientRepresentativePicture}`));
+
+          if (trip.receiptPicture)
+            images.push(fullUrl(`/Uploads/AfterHaulingReceipts/${trip.receiptPicture}`));
+          break;
+
+        /* 5️⃣ INPUT REASON */
+        case "RecordReason":
+          break;
+
+        /* 6️⃣ PROCEED TO DESTINATION */
+        case "ProceedToDisposalSite":
+        case "ProceedToSacSacYard":
+        case "ProceedToRecyclingCenter":
+          break;
+
+        /* 7️⃣ ARRIVE AT DESTINATION */
+        case "ArriveDestinationDisposalSite":
+        case "ArriveDestinationSacSacYard":
+        case "ArriveDestinationRecyclingCenter":
+          break;
+
+        /* 8️⃣ ENCODE DELIVERY */
+        case "EncodeDeliveryDisposalSite":
+        case "EncodeDeliverySacSacYard":
+        case "EncodeDeliveryRecyclingCenter":
+          (trip.deliveries ?? []).forEach((d: any) => {
+            if (d.manifestPicturePath)
+              images.push(fullUrl(`/Uploads/DeliveryUploads/ManifestPictures/${d.manifestPicturePath}`));
+
+            if (d.cargoExitPicturePath)
+              images.push(fullUrl(`/Uploads/DeliveryUploads/CargoExitPictures/${d.cargoExitPicturePath}`));
+          });
+          break;
+
+        /* 9️⃣ FINISH TRIP */
+        case "FinishTrip":
+          if (trip.cleanedTruckPicture)
+            images.push(fullUrl(`/Uploads/CleanedTruck/${trip.cleanedTruckPicture}`));
+          break;
+      }
+
+      return {
+        time: new Date(log.createdAt).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit"
+        }),
+        label: log.logActivity,
+        images,
+        icon: chooseIcon(action),
+      };
+    });
+  }, [trip, logs]);
+
+  // --------------------------------------------------
+  // CONDITIONAL RETURNS
+  // --------------------------------------------------
   if (loading) return <p>Loading trip overview...</p>;
   if (!trip) return <p>Trip not found.</p>;
 
-  /* ---------------------------------------------------------
-        BUILD TIMELINE STEPS
-  ---------------------------------------------------------- */
-
-  const timelineSteps = logs.map((log) => {
-    const images: string[] = [];
-
-    switch (log.action) {
-      case "OnTheWayToClient":
-        if (trip.dashboardPicture)
-          images.push(`/Uploads/TruckDashboards/${trip.truckDashboardPicture}`);
-        break;
-
-      case "ArriveAtClient":
-        images.push(
-          ...trip.driversAndLoadersPictures.map(
-            (p: string) => `/Uploads/DriversLoaders/${p}`
-          ),
-          ...trip.beforePictures.map(
-            (p: string) => `/Uploads/BeforeHaulingMRF/${p}`
-          )
-        );
-        break;
-
-      case "StartHauling":
-        // Usually no images here
-        break;
-
-      case "DoneHauling":
-        images.push(
-          ...trip.afterPictures.map(
-            (p: string) => `/Uploads/AfterHauling/${p}`
-          )
-        );
-        if (trip.receiptPicture)
-          images.push(
-            `/Uploads/AfterHaulingReceipts/${trip.receiptPicture}`
-          );
-        if (trip.clientRepresentativePicture)
-          images.push(
-            `/Uploads/ClientRepAfter/${trip.clientRepresentativePicture}`
-          );
-        break;
-
-      case "ArriveDestinationDisposalSite":
-      case "ArriveDestinationRecyclingCenter":
-      case "ArriveDestinationSacSacYard":
-        // Destination arrivals normally have no pictures
-        break;
-
-      case "EncodeDeliveryDisposalSite":
-      case "EncodeDeliveryRecyclingCenter":
-      case "EncodeDeliverySacSacYard":
-        // Manifest + Cargo Exit images
-        if (trip.deliveries) {
-          trip.deliveries.forEach((d: any) => {
-            if (d.manifestPicturePath)
-              images.push(
-                `/Uploads/DeliveryUploads/ManifestPictures/${d.manifestPicturePath}`
-              );
-            if (d.cargoExitPicturePath)
-              images.push(
-                `/Uploads/DeliveryUploads/CargoExitPictures/${d.cargoExitPicturePath}`
-              );
-          });
-        }
-        break;
-
-      case "FinishTrip":
-        if (trip.cleanedTruckPicture)
-          images.push(
-            `/Uploads/CleanedTruck/${trip.cleanedTruckPicture}`
-          );
-        break;
-    }
-
-    return {
-      time: new Date(log.createdAt).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-      label: log.logActivity,
-      images,
-    };
-  });
-
+  // --------------------------------------------------
+  // RENDER
+  // --------------------------------------------------
   return (
     <div className="space-y-6">
       {/* BACK BUTTON */}
@@ -142,7 +187,7 @@ export default function TripOverviewDetailsPage() {
 
       <h1 className="text-2xl font-bold">Trip #{trip.id}</h1>
 
-      {/* BASIC INFO */}
+      {/* BASIC INFO CARD */}
       <div className="bg-white p-6 rounded-lg shadow space-y-1 text-gray-700">
         <p><strong>Driver:</strong> {trip.driver}</p>
         <p><strong>Client:</strong> {trip.client}</p>
@@ -152,28 +197,38 @@ export default function TripOverviewDetailsPage() {
 
       {/* TIMELINE */}
       <div className="space-y-4">
+        {timelineSteps.length === 0 && (
+          <p className="text-gray-500 italic">No activities recorded yet.</p>
+        )}
+
         {timelineSteps.map((step, idx) => (
           <div
             key={idx}
-            className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500"
+            className="bg-white p-5 rounded-lg shadow-lg border border-gray-200"
           >
-            <h2 className="text-lg font-semibold mb-1">
-              {step.time} — {step.label}
-            </h2>
+            {/* ICON + TIME */}
+            <div className="flex items-center gap-3 mb-2">
+              {step.icon}
+              <span className="text-sm text-gray-500">{step.time}</span>
+            </div>
 
+            {/* LABEL */}
+            <h2 className="text-lg font-semibold mb-1">{step.label}</h2>
+
+            {/* IMAGES */}
             {step.images.length > 0 && (
               <div className="grid grid-cols-4 gap-3 mt-3">
                 {step.images.map((img, i) => (
                   <div
                     key={i}
-                    className="w-full h-28 bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80"
-                    onClick={() => setSelectedImage(API_URL + img)}
+                    className="w-full h-28 bg-gray-100 rounded-lg overflow-hidden shadow hover:scale-105 transition cursor-pointer"
+                    onClick={() => setSelectedImage(img)}
                   >
                     <Image
-                      src={API_URL + img}
+                      src={img}
                       width={200}
                       height={200}
-                      alt="Timeline image"
+                      alt="Timeline Image"
                       unoptimized
                       className="object-cover w-full h-full"
                     />
@@ -188,7 +243,7 @@ export default function TripOverviewDetailsPage() {
       {/* IMAGE MODAL */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50"
+          className="fixed inset-0 bg-black/70 flex justify-center items-center z-50"
           onClick={() => setSelectedImage(null)}
         >
           <div className="relative max-w-4xl w-auto">
