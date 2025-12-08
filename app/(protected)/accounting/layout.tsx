@@ -184,7 +184,7 @@ function AccountingSidebar({
         {/* RATES */}
         {hasPermission("clients.update_rates") && (
           <>
-            <SidebarSection open={open} title="Rates" />
+            <SidebarSection open={open} title="Rates Section" />
             <SidebarItem
               open={open}
               href="/accounting/rates"
@@ -197,7 +197,7 @@ function AccountingSidebar({
         {/* BILLING */}
         {(hasPermission("invoices.create") || hasPermission("invoices.upload_sent")) && (
           <>
-            <SidebarSection open={open} title="Billing" />
+            <SidebarSection open={open} title="Invoice Section" />
 
             {hasPermission("invoices.create") && (
               <SidebarItem
@@ -216,14 +216,6 @@ function AccountingSidebar({
               label="Invoice List"
             />
 
-            {hasPermission("invoices.upload_sent") && (
-              <SidebarItem
-                open={open}
-                href="/accounting/billing/sent"
-                icon={<FolderKanban size={20} />}
-                label="Upload Sent Billing"
-              />
-            )}
           </>
         )}
 
@@ -232,7 +224,7 @@ function AccountingSidebar({
           hasPermission("collections.view_paid_report") ||
           hasPermission("collections.view_deposits")) && (
           <>
-            <SidebarSection open={open} title="Payments" />
+            <SidebarSection open={open} title="Payments Section" />
 
             {hasPermission("collections.upload_receipt") && (
               <SidebarItem
@@ -269,6 +261,8 @@ function AccountingSidebar({
                 label="Unpaid Billing Reports"
               />
             )}
+
+            <SidebarSection open={open} title="Statement Of Accounts" />
 
             {hasPermission("reports.soa") && (
               <SidebarItem
