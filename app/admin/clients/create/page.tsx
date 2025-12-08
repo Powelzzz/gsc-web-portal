@@ -5,6 +5,8 @@ import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { SearchBoxCore } from "@mapbox/search-js-core";
+import toast from "react-hot-toast";
+
 
 const LeafletMap = dynamic(() => import("components/LeafletMap"), {
   ssr: false,
@@ -81,34 +83,38 @@ export default function CreateClientPage() {
 
 
   const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      await api.post("/admin/client", {
-        codeName,
-        registeredCompanyName: registeredName,
-        pickUpLocation: pickupLocation,
-        preferredHaulingSchedule: preferredSchedule,
-        driverAndLoaderPerKgFee: Number(feePerKg),
+  try {
+    await api.post("/admin/client", {
+      codeName,
+      registeredCompanyName: registeredName,
+      pickUpLocation: pickupLocation,
+      preferredHaulingSchedule: preferredSchedule,
+      driverAndLoaderPerKgFee: Number(feePerKg),
 
-        clientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
-        minimumCharging: minimumCharging ? Number(minimumCharging) : null,
-        serviceType: serviceType || null,
-        paymentTerms: paymentTerms || null,
+      clientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
+      minimumCharging: minimumCharging ? Number(minimumCharging) : null,
+      serviceType: serviceType || null,
+      paymentTerms: paymentTerms || null,
 
-        // include coordinates
-        pickUpLatLong,
-      });
+      pickUpLatLong,
+    });
 
+    toast.success("Client successfully added!");  // ✅ SUCCESS TOAST
+
+    setTimeout(() => {
       router.push("/admin/clients");
-    } catch (err) {
-      setError("Failed to save client. Please try again.");
-    }
+    }, 1200);
 
-    setLoading(false);
-  };
+  } catch (err) {
+    toast.error("Failed to save client. Please try again.");  // ❌ ERROR TOAST
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 border">

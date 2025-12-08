@@ -3,6 +3,7 @@
 import { useState } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function CreateDriverPage() {
   const router = useRouter();
@@ -29,37 +30,41 @@ export default function CreateDriverPage() {
   };
 
   const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
 
-    if (!firstName.trim() || !username.trim()) {
-      setError("First name and username are required.");
-      return;
-    }
+  if (!firstName.trim() || !username.trim()) {
+    toast.error("First name and username are required.");  // ❌ ERROR TOAST
+    return;
+  }
 
-    const password = `driver_${username}`;
+  const password = `driver_${username}`;
+  const finalContact = contactNumber ? `+63${contactNumber}` : null;
 
-    // Final format: +63 + digits
-    const finalContact = contactNumber ? `+63${contactNumber}` : null;
+  setLoading(true);
 
-    setLoading(true);
-    try {
-      await api.post("/admin/driver", {
-        firstName,
-        lastName,
-        username,
-        email,
-        contactNumber: finalContact,
-        password,
-      });
+  try {
+    await api.post("/admin/driver", {
+      firstName,
+      lastName,
+      username,
+      email,
+      contactNumber: finalContact,
+      password,
+    });
 
+    toast.success("Driver successfully added!"); // ✅ SUCCESS TOAST
+
+    setTimeout(() => {
       router.push("/admin/drivers");
-    } catch (err: any) {
-      setError("Failed to save driver. Please try again.");
-    }
+    }, 1200);
 
-    setLoading(false);
-  };
+  } catch (err: any) {
+    toast.error("Failed to save driver. Please try again."); // ❌ ERROR TOAST
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">

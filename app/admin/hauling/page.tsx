@@ -88,6 +88,12 @@ export default function HaulingTripListPage() {
     setPage(1);
   }, [search, dateFilter, statusFilter, trips]);
 
+  const getClientDisplay = (client: any) => {
+  if (!client) return "Unknown Client";
+  return `[${client.codeName}] ${client.registeredCompanyName}`;
+};
+
+
   const totalPages = Math.ceil(filteredTrips.length / perPage);
   const paginated = filteredTrips.slice((page - 1) * perPage, page * perPage);
 
@@ -167,7 +173,7 @@ export default function HaulingTripListPage() {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Detail label="Client" value={getClientName(trip.clientId)} />
+              <Detail label="Client" value={getClientName(trip.client.id)} />
               <Detail label="Pick-up Date" value={formatDate(trip.pickUpDate)} />
               <Detail label="Status" value={trip.status} />
             </div>

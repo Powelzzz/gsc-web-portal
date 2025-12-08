@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function DriverDetailsPage() {
   const router = useRouter();
@@ -53,18 +54,18 @@ export default function DriverDetailsPage() {
     );
   };
 
-  // Save Update
-  const handleSave = async () => {
+    // Save Update
+    const handleSave = async () => {
     setSuccessMsg("");
     setErrorMsg("");
 
     if (!hasChanges()) {
-      setErrorMsg("No changes detected.");
+      toast.error("No changes detected.");   // ❌ ERROR TOAST
       return;
     }
 
     if (contactNumber.length !== 13) {
-      setErrorMsg("Contact number must be in +63XXXXXXXXXX format.");
+      toast.error("Contact number must be in +63XXXXXXXXXX format."); // ❌ ERROR TOAST
       return;
     }
 
@@ -78,13 +79,14 @@ export default function DriverDetailsPage() {
         contactNumber,
       });
 
-      setSuccessMsg("Driver information successfully updated!");
+      toast.success("Driver information successfully updated!"); // ✅ SUCCESS TOAST
 
       setTimeout(() => {
         router.push("/admin/drivers");
       }, 1200);
+
     } catch {
-      setErrorMsg("Failed to update driver.");
+      toast.error("Failed to update driver."); // ❌ ERROR TOAST
     }
 
     setSaving(false);

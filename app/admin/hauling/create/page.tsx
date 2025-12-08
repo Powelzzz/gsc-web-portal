@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 export default function CreateHaulingTripPage() {
   const [clients, setClients] = useState<any[]>([]);
@@ -29,9 +30,9 @@ export default function CreateHaulingTripPage() {
     loadClients();
   }, []);
 
-  const handleSave = async () => {
+    const handleSave = async () => {
     if (!clientId || !pickupDate) {
-      alert("Client and pick-up date are required.");
+      toast.error("Client and pick-up date are required."); // ❌ ERROR TOAST
       return;
     }
 
@@ -42,21 +43,23 @@ export default function CreateHaulingTripPage() {
         clientId: clientId,
         pickUpDate: pickupDate,
         driverId: null,
-        status: "Pending"
+        status: "Pending",
       });
 
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 1500);
+      toast.success("Hauling trip created successfully!"); // ✅ SUCCESS TOAST
 
+      // Reset fields
       setClientId(null);
       setPickupDate("");
+
     } catch (err) {
       console.log(err);
-      alert("Failed to create hauling trip.");
+      toast.error("Failed to create hauling trip."); // ❌ ERROR TOAST
     }
 
     setLoading(false);
   };
+
 
   return (
     <div className="max-w-xl mx-auto bg-white p-8 rounded-xl shadow border">
@@ -95,7 +98,7 @@ export default function CreateHaulingTripPage() {
             <option value="">Choose Client</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.registeredCompanyName}
+                {c.registeredCompanyName || c.codeName}
               </option>
             ))}
           </select>

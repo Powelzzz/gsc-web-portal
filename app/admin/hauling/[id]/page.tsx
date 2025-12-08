@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function HaulingTripDetailsPage() {
   const router = useRouter();
@@ -62,16 +63,18 @@ export default function HaulingTripDetailsPage() {
   /* ------------------------------
         SAVE CHANGES
   ------------------------------ */
-  const handleSave = async () => {
+    const handleSave = async () => {
     setErrorMsg("");
     setSuccessMsg("");
 
     if (!hasChanges()) {
-      return setErrorMsg("No changes detected.");
+      toast.error("No changes detected."); // ❌ ERROR TOAST
+      return;
     }
 
     if (!clientId || !pickUpDate) {
-      return setErrorMsg("Client and pick-up date are required.");
+      toast.error("Client and pick-up date are required."); // ❌ ERROR TOAST
+      return;
     }
 
     setSaving(true);
@@ -82,17 +85,19 @@ export default function HaulingTripDetailsPage() {
         PickUpDate: pickUpDate,
       });
 
-      setSuccessMsg("Hauling trip updated successfully!");
+      toast.success("Hauling trip updated successfully!"); // ✅ SUCCESS TOAST
 
       setTimeout(() => {
         router.push("/admin/hauling");
       }, 1200);
+
     } catch {
-      setErrorMsg("Failed to update hauling trip.");
+      toast.error("Failed to update hauling trip."); // ❌ ERROR TOAST
     }
 
     setSaving(false);
   };
+
 
   /* ------------------------------
         DELETE TRIP

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function CreateAccountingStaffPage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function CreateAccountingStaffPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSave = async (e: any) => {
+    const handleSave = async (e: any) => {
     e.preventDefault();
     setError("");
 
@@ -29,7 +30,7 @@ export default function CreateAccountingStaffPage() {
       contactDigits.trim() === "" ? "" : `+63${contactDigits}`;
 
     if (!roleId) {
-      setError("Please select a role.");
+      toast.error("Please select a role.");   // ❌ ERROR TOAST
       return;
     }
 
@@ -42,12 +43,17 @@ export default function CreateAccountingStaffPage() {
         username,
         email,
         contactNumber,
-        roleId: Number(roleId),   
+        roleId: Number(roleId),
       });
 
-      router.push("/admin/accounting");
+      toast.success("Staff successfully added!"); // ✅ SUCCESS TOAST
+
+      setTimeout(() => {
+        router.push("/admin/accounting");
+      }, 1200);
+
     } catch (err: any) {
-      setError("Failed to save staff. Please try again.");
+      toast.error("Failed to save staff. Please try again."); // ❌ ERROR TOAST
     }
 
     setLoading(false);

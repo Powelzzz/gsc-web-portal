@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import toast from "react-hot-toast";
 
 const LeafletMap = dynamic(() => import("components/LeafletMap"), {
   ssr: false,
@@ -109,33 +110,37 @@ export default function ClientDetailsPage() {
   };
 
   const handleSave = async () => {
-    setErrorMsg("");
-    setSuccessMsg("");
+  setErrorMsg("");
+  setSuccessMsg("");
+  setSaving(true);
 
-    setSaving(true);
+  try {
+    await api.put(`/admin/client/${id}`, {
+      CodeName: codeName,
+      RegisteredCompanyName: registeredName,
+      PickUpLocation: pickUpLocation,
+      PickUpLatLong: pickUpLatLong,
+      PreferredHaulingSchedule: preferredSchedule,
+      DriverAndLoaderPerKgFee: feePerKg ? Number(feePerKg) : null,
+      ClientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
+      MinimumCharging: minimumCharging ? Number(minimumCharging) : null,
+      ServiceType: serviceType,
+      PaymentTerms: paymentTerms,
+    });
 
-    try {
-      await api.put(`/admin/client/${id}`, {
-        CodeName: codeName,
-        RegisteredCompanyName: registeredName,
-        PickUpLocation: pickUpLocation,
-        PickUpLatLong: pickUpLatLong,
-        PreferredHaulingSchedule: preferredSchedule,
-        DriverAndLoaderPerKgFee: feePerKg ? Number(feePerKg) : null,
-        ClientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
-        MinimumCharging: minimumCharging ? Number(minimumCharging) : null,
-        ServiceType: serviceType,
-        PaymentTerms: paymentTerms,
-      });
+    // 🔥 SUCCESS TOAST
+    toast.success("Client successfully updated!");
 
-      setSuccessMsg("Client successfully updated!");
-      setTimeout(() => router.push("/admin/clients"), 1200);
-    } catch {
-      setErrorMsg("Failed to update client.");
-    }
+    // Redirect after short delay
+    setTimeout(() => router.push("/admin/clients"), 1200);
 
-    setSaving(false);
-  };
+  } catch (err) {
+    // ❌ ERROR TOAST
+    toast.error("Failed to update client.");
+  }
+
+  setSaving(false);
+};
 
   if (loading) {
     return (

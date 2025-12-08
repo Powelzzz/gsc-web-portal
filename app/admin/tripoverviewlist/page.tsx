@@ -37,8 +37,22 @@ export default function TripOverviewList() {
 
         if (!res.ok) throw new Error("Failed to load trips");
 
-        const data: Trip[] = await res.json();
-        setTrips(data);
+        const raw = await res.json();
+
+        const mapped: Trip[] = raw.map((t: any) => ({
+          id: t.id,
+          driver: t.driver ? `${t.driver.firstName} ${t.driver.lastName}` : "No Driver",
+          truck: t.truck ? t.truck.plateNumber : "No Truck",
+          client: t.client
+  ? (t.client.registeredCompanyName || t.client.codeName)
+  : "No Client",
+
+          status: t.status,
+          date: t.pickUpDate ? t.pickUpDate.split("T")[0] : "",
+        }));
+
+        setTrips(mapped);
+
       } catch (err) {
         console.error("Error loading trips:", err);
       } finally {
