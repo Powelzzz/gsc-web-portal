@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import adminApi from "@/lib/adminApi";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-/* -----------------------------------------
-   Types (optional but helps avoid bugs)
------------------------------------------ */
 interface StaffUser {
   id: number;
   username: string;
@@ -16,6 +14,8 @@ interface StaffUser {
 }
 
 export default function AccountingStaffList() {
+  const router = useRouter();
+
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -26,18 +26,21 @@ export default function AccountingStaffList() {
 
   /* -----------------------------------------
      Load staff from backend
-     GET /users?s=keyword
+     GET /admin/accounting/users?s=keyword
   ----------------------------------------- */
   const loadStaff = async () => {
     try {
-      const res = await adminApi.get("/users");
+      const res = await adminApi.get("/admin/accounting/users", {
+        params: { s: search }
+      });
+
       setStaff(res.data);
     } catch (err) {
       console.error("Failed to load staff", err);
     }
+
     setLoading(false);
   };
-
 
   useEffect(() => {
     loadStaff();
@@ -48,7 +51,6 @@ export default function AccountingStaffList() {
 
   return (
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow border">
-
       {/* HEADER */}
       <div className="flex justify-between mb-6">
         <div>
@@ -58,13 +60,14 @@ export default function AccountingStaffList() {
 
         <Link
           href="/admin/accounting/create"
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 shadow"
+          className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 shadow"
         >
-          + Add Staff
+          <span className="text-base leading-none">+</span>
+          <span>Add New Staff</span>
         </Link>
       </div>
 
-      {/* SEARCH BAR */}
+      {/* SEARCH */}
       <div className="mb-5">
         <input
           type="text"
@@ -79,9 +82,7 @@ export default function AccountingStaffList() {
       </div>
 
       {/* LOADING */}
-      {loading && (
-        <p className="text-center py-10 text-gray-500">Loading...</p>
-      )}
+      {loading && <p className="text-center py-10 text-gray-500">Loading...</p>}
 
       {/* EMPTY */}
       {!loading && staff.length === 0 && (
@@ -91,9 +92,17 @@ export default function AccountingStaffList() {
       {/* LIST */}
       <div className="space-y-4">
         {paginated.map((s) => (
-          <div key={s.id} className="p-5 border bg-gray-50 rounded-xl shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              {s.firstName} {s.username}
+          <div
+            key={s.id}
+            className="border rounded-xl p-5 bg-gray-50 hover:bg-gray-100 transition shadow-sm cursor-pointer"
+            onClick={() => router.push(`/admin/accounting/${s.id}`)}
+          >
+            <p className="text-xs text-gray-500 text-right -mt-1 mb-1">
+              Click to view & manage
+            </p>
+
+            <h2 className="text-xl font-semibold text-gray-800 mb-3">
+              {s.firstName} ({s.username})
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -133,7 +142,6 @@ export default function AccountingStaffList() {
   );
 }
 
-/* DETAIL FIELD COMPONENT */
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">

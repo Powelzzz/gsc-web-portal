@@ -1,38 +1,73 @@
 "use client";
 
-import { useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
+import { useState, useEffect } from "react";
 import adminApi from "@/lib/adminApi";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import toast from "react-hot-toast";
 
-export default function CreateAccountingStaffPage() {
+export default function EditAccountingStaffPage() {
   const router = useRouter();
+  const params = useParams();
+  const staffId = params.id;
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+
   const [contactDigits, setContactDigits] = useState("");
   const [roleId, setRoleId] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  /* -------------------------------------------
+     LOAD EXISTING STAFF DATA (GET)
+  ------------------------------------------- */
+  useEffect(() => {
+    const loadStaff = async () => {
+      try {
+        const res = await adminApi.get(`/admin/accounting/${staffId}`);
+        const s = res.data;
 
+        setFirstName(s.firstName ?? "");
+        setLastName(s.lastName ?? "");
+        setUsername(s.username ?? "");
+        setEmail(s.email ?? "");
+
+        const extracted = s.contactNumber
+          ? s.contactNumber.replace("+63", "")
+          : "";
+        setContactDigits(extracted);
+
+        setRoleId(String(s.roleId ?? ""));
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load staff details.");
+      }
+
+      setLoading(false);
+    };
+
+    loadStaff();
+  }, [staffId]);
+
+  /* -------------------------------------------
+     SAVE UPDATE (PUT)
+  ------------------------------------------- */
   const handleSave = async (e: any) => {
     e.preventDefault();
 
-    const contactNumber =
-      contactDigits.trim() === "" ? "" : `+63${contactDigits}`;
+    if (!roleId) return toast.error("Please select a role.");
 
-    if (!roleId) {
-      toast.error("Please select a role.");
-      return;
-    }
+    setSaving(true);
 
-    setLoading(true);
+    const contactNumber = contactDigits.trim()
+      ? `+63${contactDigits}`
+      : "";
 
     try {
-      await adminApi.post("/admin/accounting", {
+      await adminApi.put(`/admin/accounting/${staffId}`, {
         firstName,
         lastName,
         username,
@@ -41,24 +76,28 @@ export default function CreateAccountingStaffPage() {
         roleId: Number(roleId),
       });
 
-      toast.success("Staff successfully added!");
+      toast.success("Staff updated successfully!");
 
-      setTimeout(() => {
-        router.push("/admin/accounting");
-      }, 1200);
+      setTimeout(() => router.push("/admin/accounting"), 1200);
     } catch (err) {
-      toast.error("Failed to save staff. Please try again.");
+      console.error(err);
+      toast.error("Failed to update staff. Please try again.");
     }
 
-    setLoading(false);
+    setSaving(false);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto p-8">
+        <p>Loading staff information...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
-      <h1 className="text-3xl font-bold mb-4">Create Accounting Staff</h1>
-      <p className="text-gray-600 mb-6">
-        Password will be auto-generated as <b>accounting_{"{username}"}</b>
-      </p>
+      <h1 className="text-3xl font-bold mb-4">Edit Accounting Staff</h1>
 
       <form onSubmit={handleSave} className="space-y-6">
         <FormGroup label="First Name" value={firstName} onChange={setFirstName} required />
@@ -72,23 +111,21 @@ export default function CreateAccountingStaffPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={saving}
           className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-semibold"
         >
-          {loading ? "Saving..." : "Save Accounting Staff"}
+          {saving ? "Saving changes..." : "Save Changes"}
         </button>
       </form>
     </div>
   );
 }
 
-function RoleSelect({
-  roleId,
-  setRoleId,
-}: {
-  roleId: string;
-  setRoleId: Dispatch<SetStateAction<string>>;
-}) {
+/* -------------------------------------------
+   Reusable Components
+------------------------------------------- */
+
+function RoleSelect({ roleId, setRoleId }: any) {
   return (
     <div>
       <label className="block font-medium mb-1">Select Role</label>
@@ -100,7 +137,6 @@ function RoleSelect({
         required
       >
         <option value="">Choose role...</option>
-
         <option value="5">Accounting Super Admin</option>
         <option value="6">Accounts Receivable</option>
         <option value="7">Accounts Payable</option>
