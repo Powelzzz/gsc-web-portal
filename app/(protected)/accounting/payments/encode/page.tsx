@@ -13,7 +13,7 @@ interface InvoiceDto {
   id: number;
   invoiceNo: string;
   clientId: number;
-  clientName: string;
+  clientName: string;        // already using RegisteredCompanyName from backend
   totalAmount: number;
   totalPaid: number;
   remainingBalance: number;
@@ -30,7 +30,7 @@ type PaymentDto = {
   chequeBank: string;
   withHeldTax: string;
   receivedAmount: string;
-  // will store multiple paths as "path1;path2;path3"
+  // semicolon-separated list: "path1;path2;path3"
   collectionReceiptImagePath: string;
 };
 
@@ -81,33 +81,29 @@ export default function EncodePaymentsPage() {
   const loadInvoices = async () => {
     try {
       const res = await api.get("/accounting/invoices");
-      setInvoiceList(res.data);
+
+      // Normalize backend data into InvoiceDto
+      const mapped: InvoiceDto[] = res.data.map((inv: any) => {
+        const totalAmount = Number(inv.totalAmount ?? inv.netAmount ?? 0);
+        const totalPaid = Number(inv.totalPaid ?? 0);
+        const remainingBalance = Number(
+          inv.remainingBalance ?? totalAmount - totalPaid
+        );
+
+        return {
+          id: inv.id,
+          invoiceNo: inv.invoiceNo,
+          clientId: inv.clientId,
+          clientName: inv.clientName || "", // backend already gives RegisteredCompanyName-based string
+          totalAmount,
+          totalPaid,
+          remainingBalance,
+        };
+      });
+
+      setInvoiceList(mapped);
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  /* ---------------------------------------------
-     LOAD INVOICE DETAILS
-  --------------------------------------------- */
-
-  const loadInvoiceDetails = async (id: number) => {
-    try {
-      const res = await api.get(`/accounting/invoices/${id}`);
-      const inv = res.data;
-
-      setSelectedInvoice({
-        id: inv.id,
-        invoiceNo: inv.invoiceNo,
-        clientId: inv.clientId,
-        clientName: inv.clientName,
-        totalAmount: Number(inv.netAmount),
-        totalPaid: Number(inv.totalPaid ?? 0),
-        remainingBalance:
-          Number(inv.remainingBalance ?? inv.netAmount - (inv.totalPaid ?? 0)),
-      });
-    } catch (err) {
-      console.error("Failed to load invoice", err);
     }
   };
 
@@ -118,7 +114,7 @@ export default function EncodePaymentsPage() {
   const handleChange = (key: keyof PaymentDto, value: any) =>
     setDto((p) => ({ ...p, [key]: value }));
 
-  // NO upload here anymore — only local state + previews
+  // Only local state + previews; actual upload happens on SAVE
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -128,14 +124,12 @@ export default function EncodePaymentsPage() {
     const newPreviewUrls = files.map((file) => URL.createObjectURL(file));
     setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
 
-    // allow re-selecting the same files again later if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const handleRemoveImage = (index: number) => {
-    // remove from local arrays
     setReceiptImages((prev) => prev.filter((_, i) => i !== index));
     setPreviewUrls((prev) => {
       const url = prev[index];
@@ -144,14 +138,15 @@ export default function EncodePaymentsPage() {
     });
   };
 
-  const selectInvoice = async (inv: InvoiceDto) => {
+  const selectInvoice = (inv: InvoiceDto) => {
+    // We already have full data for inv from /accounting/invoices
     handleChange("invoiceId", inv.id.toString());
     handleChange("clientId", inv.clientId.toString());
     setSearch(inv.invoiceNo);
     setShowDropdown(false);
+    setSelectedInvoice(inv);
 
     toast.success(`Invoice ${inv.invoiceNo} selected`);
-    await loadInvoiceDetails(inv.id);
   };
 
   const filteredInvoices = invoiceList.filter((inv) => {
@@ -162,17 +157,12 @@ export default function EncodePaymentsPage() {
   });
 
   const resetAll = () => {
-    // reset dto
     setDto(createInitialDto());
-    // clear invoice lookup
     setSelectedInvoice(null);
     setSearch("");
     setShowDropdown(false);
-    // clear images + previews
-    receiptImages.forEach((_, i) => {
-      const url = previewUrls[i];
-      if (url) URL.revokeObjectURL(url);
-    });
+
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
     setReceiptImages([]);
     setPreviewUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -203,7 +193,7 @@ export default function EncodePaymentsPage() {
     setLoading(true);
 
     try {
-      // 1) Upload images NOW (only when saving)
+      // 1) Upload images on SAVE
       let imagePathString = "";
 
       if (receiptImages.length > 0) {
@@ -213,7 +203,6 @@ export default function EncodePaymentsPage() {
           const formData = new FormData();
           formData.append("file", file);
 
-          // baseURL likely includes /api, so this hits POST /api/upload
           const res = await api.post("/upload", formData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
@@ -224,7 +213,7 @@ export default function EncodePaymentsPage() {
         imagePathString = uploadedPaths.join(";");
       }
 
-      // 2) Save payment with imagePathString (or empty string if no images)
+      // 2) Save payment with imagePathString
       await api.post("/accounting/payments", {
         InvoiceId: Number(dto.invoiceId),
         ClientId: Number(dto.clientId),
@@ -241,8 +230,10 @@ export default function EncodePaymentsPage() {
 
       toast.success("Payment recorded!");
 
-      // 3) "Refresh" page: reset everything
+      // 3) Reset everything (acts like a refresh)
       resetAll();
+      // Optional: reload invoices if you want updated totals next time
+      await loadInvoices();
     } catch (err) {
       console.error(err);
       toast.error("Failed to save payment.");
@@ -302,21 +293,23 @@ export default function EncodePaymentsPage() {
         {selectedInvoice && (
           <div className="mt-4 p-4 border rounded-lg bg-gray-50 text-sm space-y-1">
             <p>
-              <span className="font-medium">Invoice:</span> {selectedInvoice.invoiceNo}
+              <span className="font-medium">Invoice:</span>{" "}
+              {selectedInvoice.invoiceNo}
             </p>
             <p>
-              <span className="font-medium">Client:</span> {selectedInvoice.clientName}
+              <span className="font-medium">Client:</span>{" "}
+              {selectedInvoice.clientName}
             </p>
             <p>
-              <span className="font-medium">Total:</span> ₱
-              {selectedInvoice.totalAmount.toLocaleString()}
+              <span className="font-medium">Invoice Total:</span>{" "}
+              ₱{selectedInvoice.totalAmount.toLocaleString()}
             </p>
             <p>
-              <span className="font-medium">Paid:</span> ₱
-              {selectedInvoice.totalPaid.toLocaleString()}
+              <span className="font-medium">Total Paid:</span>{" "}
+              ₱{selectedInvoice.totalPaid.toLocaleString()}
             </p>
             <p>
-              <span className="font-medium">Remaining:</span>{" "}
+              <span className="font-medium">Remaining Balance:</span>{" "}
               <span
                 className={
                   selectedInvoice.remainingBalance <= 0
