@@ -6,6 +6,7 @@ import api from "@/lib/api"; // your axios instance
 interface ServiceRate {
   id: number;
   clientId: number;
+  clientName: string;
   serviceType: string;
   ratePerKg: string;
   paymentTerms: string;
@@ -169,7 +170,7 @@ export default function EncodeRatesPage() {
           <table className="w-full text-sm border-collapse">
             <thead className="bg-gray-100 text-gray-600 sticky top-0">
               <tr>
-                <th className="py-2 px-3 text-left">Client ID</th>
+                <th className="py-2 px-3 text-left">Client</th>
                 <th className="py-2 px-3 text-left">Service Type</th>
                 <th className="py-2 px-3 text-left">Rate</th>
                 <th className="py-2 px-3 text-left">Terms</th>
@@ -180,7 +181,7 @@ export default function EncodeRatesPage() {
             <tbody>
               {paginatedData.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="py-3 px-3">{r.clientId}</td>
+                  <td className="py-3 px-3">{r.clientName}</td>
                   <td className="py-3 px-3">{r.serviceType}</td>
                   <td className="py-3 px-3">₱{parseFloat(r.ratePerKg).toFixed(2)}</td>
                   <td className="py-3 px-3">{r.paymentTerms}</td>
