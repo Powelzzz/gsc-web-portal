@@ -25,6 +25,25 @@ interface ClientOption {
   serviceRate?: ClientServiceRateSnapshot;
 }
 
+/* ✅ AUDIT LOG TYPES (NOW FROM BACKEND) */
+type AuditAction = "CREATE" | "DEACTIVATE" | "UPDATE";
+
+interface ServiceRateAuditLog {
+  id: number;
+  performedAt: string; // ISO
+  performedBy: string; // username/name
+  action: AuditAction;
+
+  clientId: number;
+  clientName: string;
+
+  serviceType: string;
+  ratePerKg: string;
+  paymentTerms: string;
+
+  notes?: string;
+}
+
 export default function EncodeRatesPage() {
   // FORM
   const [clientId, setClientId] = useState("");
@@ -48,6 +67,11 @@ export default function EncodeRatesPage() {
   const rowsPerPage = 10;
   const [page, setPage] = useState(1);
 
+  // ✅ AUDIT LOGS (DYNAMIC)
+  const [auditLogs, setAuditLogs] = useState<ServiceRateAuditLog[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFilterText, setAuditFilterText] = useState("");
+
   /* ─────────────────────────────────────────────── */
   /* LOAD RATES FROM BACKEND                         */
   /* ─────────────────────────────────────────────── */
@@ -68,46 +92,124 @@ export default function EncodeRatesPage() {
   /* LOAD CLIENTS FOR DROPDOWN (FROM ADMIN CONTROLLER) */
   /* ─────────────────────────────────────────────── */
   async function loadClients() {
-  setClientsLoading(true);
-  try {
-    const res = await api.get("/Admin/client");
+    setClientsLoading(true);
+    try {
+      const res = await api.get("/Admin/client");
 
-    type RawClient = {
-      id: number;
-      registeredCompanyName?: string | null;
-      serviceRate?: {
-        serviceType?: string | null;
-        ratePerKg?: string | null;
-        paymentTerms?: string | null;
-      } | null;
+      type RawClient = {
+        id: number;
+        registeredCompanyName?: string | null;
+        serviceRate?: {
+          serviceType?: string | null;
+          ratePerKg?: string | null;
+          paymentTerms?: string | null;
+        } | null;
+      };
+
+      const data = res.data as RawClient[];
+
+      const mapped: ClientOption[] = data.map((c) => ({
+        id: c.id,
+        name: c.registeredCompanyName || "(Unknown Client)",
+        serviceRate: c.serviceRate
+          ? {
+              serviceType: c.serviceRate.serviceType ?? "",
+              ratePerKg: c.serviceRate.ratePerKg ?? "",
+              paymentTerms: c.serviceRate.paymentTerms ?? "",
+            }
+          : undefined,
+      }));
+
+      setClients(mapped);
+    } catch (err) {
+      console.error("Failed to load clients:", err);
+    }
+    setClientsLoading(false);
+  }
+
+  /* ─────────────────────────────────────────────── */
+  /* LOAD AUDIT LOGS (FROM BACKEND)                  */
+  /* Backend expected: /Accounting/rates/audit       */
+  /* returns array of:                              */
+  /* { id, performedAt, performedBy, action, summary, afterJson, beforeJson } */
+  /* ─────────────────────────────────────────────── */
+  async function loadAuditLogs(selectedClientId?: number) {
+  setAuditLoading(true);
+  try {
+    const res = await api.get("/Accounting/rates/audit", {
+      params: { clientId: selectedClientId, take: 50 },
+    });
+
+    const get = (obj: any, ...keys: string[]) => {
+      for (const k of keys) {
+        if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+      }
+      return undefined;
     };
 
-    const data = res.data as RawClient[];
+    const safeJson = (s: any) => {
+      try {
+        return s ? JSON.parse(s) : {};
+      } catch {
+        return {};
+      }
+    };
 
-    const mapped: ClientOption[] = data.map((c) => ({
-      id: c.id,
-      name: c.registeredCompanyName || "(Unknown Client)",  // ✔ Registered company name only
-      serviceRate: c.serviceRate
-        ? {
-            serviceType: c.serviceRate.serviceType ?? "",
-            ratePerKg: c.serviceRate.ratePerKg ?? "",
-            paymentTerms: c.serviceRate.paymentTerms ?? "",
-          }
-        : undefined,
-    }));
+    const mapped: ServiceRateAuditLog[] = (res.data || []).map((x: any) => {
+      const after = safeJson(x.afterJson);
+      const before = safeJson(x.beforeJson);
 
-    setClients(mapped);
+      // Prefer AFTER, fallback to BEFORE (useful if some old logs still partial)
+      const data = Object.keys(after || {}).length ? after : before;
+
+      const cid = Number(get(data, "clientId", "ClientId") ?? 0);
+
+      const clientNameFromDropdown =
+        cid > 0 ? clients.find((c) => c.id === cid)?.name : undefined;
+
+      return {
+        id: x.id,
+        performedAt: x.performedAt
+          ? new Date(x.performedAt).toISOString()
+          : new Date().toISOString(),
+        performedBy: x.performedBy ?? "Unknown",
+        action: (x.action ?? "UPDATE") as AuditAction,
+
+        clientId: cid,
+        clientName:
+          get(data, "clientName", "ClientName") ??
+          clientNameFromDropdown ??
+          (cid ? `Client #${cid}` : "—"),
+
+        serviceType: get(data, "serviceType", "ServiceType") ?? "—",
+        ratePerKg: String(get(data, "ratePerKg", "RatePerKg") ?? "0"),
+        paymentTerms: get(data, "paymentTerms", "PaymentTerms") ?? "—",
+
+        notes: x.summary ?? "",
+      };
+    });
+
+    setAuditLogs(mapped);
   } catch (err) {
-    console.error("Failed to load clients:", err);
+    console.error("Failed to load audit logs:", err);
+    setAuditLogs([]);
   }
-  setClientsLoading(false);
+  setAuditLoading(false);
 }
 
-
+  /* INITIAL LOAD */
   useEffect(() => {
     loadRates();
     loadClients();
+    loadAuditLogs();
   }, []);
+
+  /* RELOAD AUDIT LOGS WHEN CLIENT CHANGES (auto-filter) */
+  useEffect(() => {
+  loadAuditLogs(clientId ? Number(clientId) : undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [clientId, clients]);
+
 
   /* ─────────────────────────────────────────────── */
   /* PREFILL FIELDS WHEN CLIENT CHANGES              */
@@ -130,7 +232,6 @@ export default function EncodeRatesPage() {
       setRate(selectedClient.serviceRate.ratePerKg);
       setTerms(selectedClient.serviceRate.paymentTerms);
     } else {
-      // No active service rate snapshot from AdminController
       setServiceType("");
       setRate("");
       setTerms("");
@@ -157,6 +258,27 @@ export default function EncodeRatesPage() {
     page * rowsPerPage
   );
 
+  /* ✅ AUDIT LOG FILTERING (UI SEARCH + AUTO CLIENT FILTER) */
+  const filteredAuditLogs = useMemo(() => {
+    const q = auditFilterText.trim().toLowerCase();
+    const selectedClientId = clientId ? Number(clientId) : null;
+
+    return auditLogs.filter((a) => {
+      const matchSearch =
+        q === "" ||
+        a.performedBy.toLowerCase().includes(q) ||
+        a.clientName.toLowerCase().includes(q) ||
+        a.serviceType.toLowerCase().includes(q) ||
+        a.paymentTerms.toLowerCase().includes(q) ||
+        a.action.toLowerCase().includes(q) ||
+        (a.notes ?? "").toLowerCase().includes(q);
+
+      const matchClient = !selectedClientId || a.clientId === selectedClientId;
+
+      return matchSearch && matchClient;
+    });
+  }, [auditLogs, auditFilterText, clientId]);
+
   /* ─────────────────────────────────────────────── */
   /* SAVE NEW RATE (POST to backend)                 */
   /* ─────────────────────────────────────────────── */
@@ -178,10 +300,12 @@ export default function EncodeRatesPage() {
 
       alert("Rate saved successfully!");
 
-      // Prepend new record to table
       setRates((prev) => [res.data, ...prev]);
 
-      // Reset form
+      // Refresh logs after operation
+      if (clientId) loadAuditLogs(Number(clientId));
+      else loadAuditLogs();
+
       setClientId("");
       setServiceType("");
       setRate("");
@@ -205,6 +329,10 @@ export default function EncodeRatesPage() {
       setRates((prev) => prev.filter((r) => r.id !== id));
 
       alert("Rate deactivated.");
+
+      // Refresh logs after operation
+      if (clientId) loadAuditLogs(Number(clientId));
+      else loadAuditLogs();
     } catch (err) {
       console.error(err);
       alert("Failed to deactivate rate.");
@@ -330,10 +458,7 @@ export default function EncodeRatesPage() {
 
               {!loading && paginatedData.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="py-8 text-center text-gray-400"
-                  >
+                  <td colSpan={5} className="py-8 text-center text-gray-400">
                     No matching results.
                   </td>
                 </tr>
@@ -371,6 +496,121 @@ export default function EncodeRatesPage() {
           >
             Next
           </button>
+        </div>
+
+        {/* ✅ AUDIT LOGS (NOW CONNECTED TO BACKEND) */}
+        <div className="mt-10 pt-6 border-t">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Audit Logs
+              </h3>
+              <p className="text-sm text-gray-500">
+                Shows who encoded/updated/deactivated service rates.
+              </p>
+              {clientId && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Auto-filtered to selected Client ID:{" "}
+                  <span className="font-semibold">{clientId}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="w-full md:w-80">
+              <LabeledInput
+                label="Search logs (user/client/service/action)"
+                value={auditFilterText}
+                onChange={(e) => setAuditFilterText(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Summary row */}
+          <div className="flex flex-wrap gap-3 mb-4 text-xs">
+            <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+              Total Logs: <b>{filteredAuditLogs.length}</b>
+            </span>
+            <span className="px-3 py-1 rounded-full bg-green-100 text-green-700">
+              CREATE
+            </span>
+            <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700">
+              UPDATE
+            </span>
+            <span className="px-3 py-1 rounded-full bg-red-100 text-red-700">
+              DEACTIVATE
+            </span>
+          </div>
+
+          {auditLoading && (
+            <p className="text-gray-500 text-sm">Loading audit logs...</p>
+          )}
+
+          {!auditLoading && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="py-2 px-3 text-left">Date/Time</th>
+                    <th className="py-2 px-3 text-left">User</th>
+                    <th className="py-2 px-3 text-left">Action</th>
+                    <th className="py-2 px-3 text-left">Client</th>
+                    <th className="py-2 px-3 text-left">Service Type</th>
+                    <th className="py-2 px-3 text-left">Rate</th>
+                    <th className="py-2 px-3 text-left">Terms</th>
+                    <th className="py-2 px-3 text-left">Notes</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredAuditLogs.map((a) => (
+                    <tr key={a.id} className="border-t">
+                      <td className="py-3 px-3">
+                        {new Date(a.performedAt).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-3 font-medium">{a.performedBy}</td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-semibold ${
+                            a.action === "CREATE"
+                              ? "bg-green-100 text-green-700"
+                              : a.action === "DEACTIVATE"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {a.action}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">{a.clientName}</td>
+                      <td className="py-3 px-3">{a.serviceType}</td>
+                      <td className="py-3 px-3">
+                        ₱{Number(a.ratePerKg || 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3">{a.paymentTerms}</td>
+                      <td className="py-3 px-3 text-gray-500">
+                        {a.notes ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredAuditLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-gray-400">
+                        No logs match your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!auditLoading && auditLogs.length === 0 && (
+            <p className="text-xs text-gray-400 mt-3">
+              No audit logs found yet. Perform a rate create/deactivate to
+              generate logs.
+            </p>
+          )}
         </div>
       </div>
     </div>
