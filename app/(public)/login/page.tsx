@@ -49,9 +49,10 @@ export default function LoginPage() {
       localStorage.setItem("gc_user_firstname", data.firstName ?? "");
       localStorage.setItem("gc_user_lastname", data.lastName ?? "");
 
-      const payload = JSON.parse(atob(data.token.split(".")[1]));
-      const permissions = payload.perm || [];
+      // ✅ source of truth: API response
+      const permissions = data.permissions ?? data.Permissions ?? [];
       localStorage.setItem("gc_permissions", JSON.stringify(permissions));
+
 
       document.cookie = `gc_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
       document.cookie = `gc_user_role=${data.role}; path=/; max-age=${60 * 60 * 24 * 7}`;

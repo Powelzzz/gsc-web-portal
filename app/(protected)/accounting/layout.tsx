@@ -246,6 +246,21 @@ function AccountingSidebar({
           </>
         )}
 
+        {/* DRIVER PAYROLL */}
+        {hasPermission("payroll.view_driver") && (
+          <>
+            <SidebarSection open={open} title="Payroll" />
+
+            <SidebarItem
+              open={open}
+              href="/accounting/driverpayroll"
+              icon={<FileBarChart size={20} />}
+              label="Driver Payroll"
+            />
+          </>
+        )}
+
+
         {/* REPORTS */}
         {(hasPermission("reports.ar_paid_accounts") ||
           hasPermission("reports.ar_unpaid_accounts") ||
