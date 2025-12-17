@@ -110,6 +110,21 @@ export default function BillingGeneratePage() {
   // ✅ modal state
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Message modal state + helper
+  type ModalKind = "success" | "error" | "info";
+
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [msgKind, setMsgKind] = useState<ModalKind>("info");
+  const [msgTitle, setMsgTitle] = useState("");
+  const [msgBody, setMsgBody] = useState("");
+
+  function openMsg(kind: ModalKind, title: string, body: string) {
+    setMsgKind(kind);
+    setMsgTitle(title);  
+    setMsgBody(body);
+    setMsgOpen(true); 
+  }
+
   const router = useRouter();
 
   const selectedClientId = useMemo(() => {
@@ -320,13 +335,33 @@ export default function BillingGeneratePage() {
   // ✅ open modal with validation
   function handleOpenConfirm() {
     setInvoiceError("");
+    if (!selectedClientId) {
+      setInvoiceError("Please select a client.");
+      openMsg("error", "Missing client", "Please select a client before generating.");
+      return;
+    }
 
-    if (!selectedClientId) return setInvoiceError("Please select a client.");
-    if (!invoiceNumber.trim()) return setInvoiceError("Invoice number is required.");
-    if (selectedTripIds.size === 0)
-      return setInvoiceError("Please select at least one hauling trip.");
-    if (!activeRate) return setInvoiceError("No active rate found for this client.");
+    if (!invoiceNumber.trim()) {
+      setInvoiceError("Invoice number is required.");
+      openMsg("error", "Missing invoice number", "Invoice number is required.");
+      return;
+    }
 
+    if (selectedTripIds.size === 0) {
+      setInvoiceError("Please select at least one hauling trip.");
+      openMsg("error", "No trips selected", "Please select at least one hauling trip.");
+      return;
+    }
+
+    if (!activeRate) {
+      setInvoiceError("No active rate found for this client.");
+      openMsg(
+        "error",
+        "No active rate",
+        "No active Hauling rate found for this client.\n\nGo to Rates and set an active rate first."
+      );
+      return;
+    }
     setShowConfirm(true);
   }
 
@@ -348,21 +383,32 @@ export default function BillingGeneratePage() {
       const res = await api.post("/accounting/invoices/generate", payload);
       console.log("Invoice created:", res.data);
 
-      alert("Invoice successfully generated!");
+      setShowConfirm(false);
+
+      openMsg(
+        "success",
+        "Invoice generated",
+        `Invoice ${invoiceNumber.trim()} was generated successfully.`
+      );
 
       // reset to avoid duplicates
       clearSelection();
       setInvoiceNumber("");
       setWithholding(0);
       setTripPage(1);
-      setShowConfirm(false);
 
       router.refresh();
+
     } catch (err) {
       const msg = getApiErrorMessage(err);
       console.error("Failed to generate invoice:", msg);
       setInvoiceError(msg);
-      alert(msg);
+      setShowConfirm(false);
+      openMsg(
+        "info",
+        "Invoice already generated",
+        "Some of the selected hauling trips already have an invoice and were not processed."
+      );
     } finally {
       setSavingInvoice(false);
     }
@@ -458,6 +504,32 @@ export default function BillingGeneratePage() {
                 }`}
               >
                 {savingInvoice ? "Generating..." : "Confirm & Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message Modal */}
+      {msgOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMsgOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-xl shadow-lg border p-6">
+            <h3 className="text-lg font-semibold text-gray-800">{msgTitle}</h3>
+            <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">
+              {msgBody}
+            </p>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setMsgOpen(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                OK
               </button>
             </div>
           </div>
