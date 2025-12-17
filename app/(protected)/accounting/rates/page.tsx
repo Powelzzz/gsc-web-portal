@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useMemo, useRef, ChangeEvent, InputHTMLAttributes } from "react";
 import api from "@/lib/api"; // your axios instance
 
 interface ServiceRate {
@@ -61,6 +61,7 @@ export default function EncodeRatesPage() {
 
   // FILTERS
   const [filterClientId, setFilterClientId] = useState("");
+  const [filterClientName, setFilterClientName] = useState("");
   const [filterType, setFilterType] = useState("");
 
   // PAGINATION
@@ -71,6 +72,8 @@ export default function EncodeRatesPage() {
   const [auditLogs, setAuditLogs] = useState<ServiceRateAuditLog[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditFilterText, setAuditFilterText] = useState("");
+  // request guard to prevent stale responses from overwriting newer state
+  const auditReqRef = useRef(0);
 
   /* ─────────────────────────────────────────────── */
   /* LOAD RATES FROM BACKEND                         */
@@ -91,7 +94,7 @@ export default function EncodeRatesPage() {
   /* ─────────────────────────────────────────────── */
   /* LOAD CLIENTS FOR DROPDOWN (FROM ADMIN CONTROLLER) */
   /* ─────────────────────────────────────────────── */
-  async function loadClients() {
+  async function loadClients(): Promise<ClientOption[]> {
     setClientsLoading(true);
     try {
       const res = await api.get("/Admin/client");
@@ -121,10 +124,13 @@ export default function EncodeRatesPage() {
       }));
 
       setClients(mapped);
+      return mapped;
     } catch (err) {
       console.error("Failed to load clients:", err);
+      return [];
+    } finally {
+      setClientsLoading(false);
     }
-    setClientsLoading(false);
   }
 
   /* ─────────────────────────────────────────────── */
@@ -133,82 +139,97 @@ export default function EncodeRatesPage() {
   /* returns array of:                              */
   /* { id, performedAt, performedBy, action, summary, afterJson, beforeJson } */
   /* ─────────────────────────────────────────────── */
-  async function loadAuditLogs(selectedClientId?: number) {
-  setAuditLoading(true);
-  try {
-    const res = await api.get("/Accounting/rates/audit", {
-      params: { clientId: selectedClientId, take: 50 },
-    });
+  async function loadAuditLogs(selectedClientId?: number, clientList?: ClientOption[]) {
+    const reqId = ++auditReqRef.current;
+    setAuditLoading(true);
+    try {
+      const res = await api.get("/Accounting/rates/audit", {
+        params: { clientId: selectedClientId, take: 50 },
+      });
+      // if a newer request exists, ignore this response
+      if (reqId !== auditReqRef.current) return;
 
-    const get = (obj: any, ...keys: string[]) => {
-      for (const k of keys) {
-        if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
-      }
-      return undefined;
-    };
-
-    const safeJson = (s: any) => {
-      try {
-        return s ? JSON.parse(s) : {};
-      } catch {
-        return {};
-      }
-    };
-
-    const mapped: ServiceRateAuditLog[] = (res.data || []).map((x: any) => {
-      const after = safeJson(x.afterJson);
-      const before = safeJson(x.beforeJson);
-
-      // Prefer AFTER, fallback to BEFORE (useful if some old logs still partial)
-      const data = Object.keys(after || {}).length ? after : before;
-
-      const cid = Number(get(data, "clientId", "ClientId") ?? 0);
-
-      const clientNameFromDropdown =
-        cid > 0 ? clients.find((c) => c.id === cid)?.name : undefined;
-
-      return {
-        id: x.id,
-        performedAt: x.performedAt
-          ? new Date(x.performedAt).toISOString()
-          : new Date().toISOString(),
-        performedBy: x.performedBy ?? "Unknown",
-        action: (x.action ?? "UPDATE") as AuditAction,
-
-        clientId: cid,
-        clientName:
-          get(data, "clientName", "ClientName") ??
-          clientNameFromDropdown ??
-          (cid ? `Client #${cid}` : "—"),
-
-        serviceType: get(data, "serviceType", "ServiceType") ?? "—",
-        ratePerKg: String(get(data, "ratePerKg", "RatePerKg") ?? "0"),
-        paymentTerms: get(data, "paymentTerms", "PaymentTerms") ?? "—",
-
-        notes: x.summary ?? "",
+      const get = (obj: any, ...keys: string[]) => {
+        for (const k of keys) {
+          if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+        }
+        return undefined;
       };
-    });
 
-    setAuditLogs(mapped);
-  } catch (err) {
-    console.error("Failed to load audit logs:", err);
-    setAuditLogs([]);
+      const safeJson = (s: any) => {
+        if (!s) return {};
+        if (typeof s === "object") return s;
+        try {
+          return JSON.parse(s);
+        } catch {
+          return {};
+        }
+      };
+
+      // use provided clientList (from initial load) if given, otherwise use current state
+      const clientLookup = clientList ?? clients;
+
+      const mapped: ServiceRateAuditLog[] = (res.data || []).map((x: any) => {
+        const after = safeJson(x.afterJson);
+        const before = safeJson(x.beforeJson);
+
+        // Prefer AFTER, fallback to BEFORE (useful if some old logs still partial)
+        const data = Object.keys(after || {}).length ? after : before;
+
+        const cid = Number(get(data, "clientId", "ClientId") ?? 0);
+
+        const clientNameFromDropdown =
+          cid > 0 ? clientLookup.find((c) => c.id === cid)?.name : undefined;
+
+        return {
+          id: x.id,
+          performedAt: x.performedAt
+            ? new Date(x.performedAt).toISOString()
+            : new Date().toISOString(),
+          performedBy: x.performedBy ?? "Unknown",
+          action: (x.action ?? "UPDATE") as AuditAction,
+
+          clientId: cid,
+          clientName:
+            get(data, "clientName", "ClientName") ??
+            clientNameFromDropdown ??
+            (cid ? `Client #${cid}` : "—"),
+
+          serviceType: get(data, "serviceType", "ServiceType") ?? "—",
+          ratePerKg: String(get(data, "ratePerKg", "RatePerKg") ?? "0"),
+          paymentTerms: get(data, "paymentTerms", "PaymentTerms") ?? "—",
+
+          notes: x.summary ?? "",
+        };
+      });
+
+      setAuditLogs(mapped);
+    } catch (err) {
+      console.error("Failed to load audit logs:", err);
+      // only set error state if this is the latest request
+      if (reqId === auditReqRef.current) setAuditLogs([]);
+    } finally {
+      if (reqId === auditReqRef.current) setAuditLoading(false);
+    }
   }
-  setAuditLoading(false);
-}
 
   /* INITIAL LOAD */
   useEffect(() => {
-    loadRates();
-    loadClients();
-    loadAuditLogs();
+    (async () => {
+      // load rates + clients (clients result used immediately to avoid race)
+      const [, loadedClients] = await Promise.all([loadRates(), loadClients()]);
+      // now safe to load audit logs once (use loadedClients so client names are available)
+      await loadAuditLogs(undefined, loadedClients);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* RELOAD AUDIT LOGS WHEN CLIENT CHANGES (auto-filter) */
   useEffect(() => {
   loadAuditLogs(clientId ? Number(clientId) : undefined);
+  // only re-run when selected client changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [clientId, clients]);
+}, [clientId]);
 
 
   /* ─────────────────────────────────────────────── */
@@ -246,11 +267,13 @@ export default function EncodeRatesPage() {
       return (
         (filterClientId === "" ||
           r.clientId.toString().includes(filterClientId)) &&
+        (filterClientName === "" ||
+          r.clientName.toLowerCase().includes(filterClientName.toLowerCase())) &&
         (filterType === "" ||
           r.serviceType.toLowerCase().includes(filterType.toLowerCase()))
       );
     });
-  }, [rates, filterClientId, filterType]);
+  }, [rates, filterClientId, filterClientName, filterType]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRates.length / rowsPerPage));
   const paginatedData = filteredRates.slice(
@@ -283,8 +306,14 @@ export default function EncodeRatesPage() {
   /* SAVE NEW RATE (POST to backend)                 */
   /* ─────────────────────────────────────────────── */
   async function handleSave() {
-    if (!clientId || !serviceType || !rate) {
-      alert("Client, Service Type, and Rate are required.");
+    if (!clientId || !serviceType) {
+      alert("Client and Service Type are required.");
+      return;
+    }
+
+    const rateNum = Number(rate);
+    if (!Number.isFinite(rateNum) || rateNum <= 0) {
+      alert("Rate must be a valid number greater than 0.");
       return;
     }
 
@@ -292,20 +321,20 @@ export default function EncodeRatesPage() {
       const payload = {
         clientId: Number(clientId),
         serviceType: serviceType.trim(),
-        ratePerKg: rate.trim(),
+        ratePerKg: rateNum.toString(),
         paymentTerms: terms.trim(),
       };
 
-      const res = await api.post("/Accounting/rates", payload);
+      // post then reload canonical data from server (single source of truth)
+      await api.post("/Accounting/rates", payload);
+      // refresh rates + clients (clients used for prefilling / snapshots)
+      await Promise.all([loadRates(), loadClients()]);
+      // refresh audit logs filtered to the saved client
+      await loadAuditLogs(Number(clientId));
 
       alert("Rate saved successfully!");
 
-      setRates((prev) => [res.data, ...prev]);
-
-      // Refresh logs after operation
-      if (clientId) loadAuditLogs(Number(clientId));
-      else loadAuditLogs();
-
+      // clear form and reset page after successful full refresh
       setClientId("");
       setServiceType("");
       setRate("");
@@ -380,6 +409,8 @@ export default function EncodeRatesPage() {
             label="Rate per KG"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
+            type="number"
+            inputProps={{ step: "0.01", min: "0" }}
           />
 
           <LabeledInput
@@ -408,6 +439,14 @@ export default function EncodeRatesPage() {
             value={filterClientId}
             onChange={(e) => {
               setFilterClientId(e.target.value);
+              setPage(1);
+            }}
+          />
+          <LabeledInput
+            label="Filter by Client Name"
+            value={filterClientName}
+            onChange={(e) => {
+              setFilterClientName(e.target.value);
               setPage(1);
             }}
           />
@@ -622,17 +661,23 @@ function LabeledInput({
   label,
   value,
   onChange,
+  type = "text",
+  inputProps,
 }: {
   label: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  inputProps?: InputHTMLAttributes<HTMLInputElement>;
 }) {
   return (
     <div className="flex flex-col gap-1">
       <label className="text-sm text-gray-600 font-medium">{label}</label>
       <input
+        type={type}
         value={value}
         onChange={onChange}
+        {...(inputProps ?? {})}
         className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </div>

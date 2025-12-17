@@ -13,11 +13,13 @@ interface InvoiceDto {
   id: number;
   invoiceNo: string;
   clientId: number;
-  clientName: string;        // already using RegisteredCompanyName from backend
+  clientName: string;        
   totalAmount: number;
   totalPaid: number;
   remainingBalance: number;
 }
+
+type PaymentMethod = "Cash" | "Cheque";
 
 type PaymentDto = {
   invoiceId: string;
@@ -32,6 +34,7 @@ type PaymentDto = {
   receivedAmount: string;
   // semicolon-separated list: "path1;path2;path3"
   collectionReceiptImagePath: string;
+  paymentMethod: PaymentMethod;
 };
 
 /* ---------------------------------------------
@@ -50,6 +53,7 @@ const createInitialDto = (): PaymentDto => ({
   withHeldTax: "0",
   receivedAmount: "",
   collectionReceiptImagePath: "",
+  paymentMethod: "Cash",
 });
 
 /* ---------------------------------------------
@@ -62,6 +66,11 @@ export default function EncodePaymentsPage() {
   const [receiptImages, setReceiptImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // upload limits
+  const MAX_IMAGE_MB = 3;
+  const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
+  const MAX_IMAGES = 5;
 
   const [loading, setLoading] = useState(false);
 
@@ -111,22 +120,100 @@ export default function EncodePaymentsPage() {
      HELPERS
   --------------------------------------------- */
 
+  // convert arbitrary value to a finite number, fallback 0
+  const toNumber = (v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const handleChange = (key: keyof PaymentDto, value: any) =>
     setDto((p) => ({ ...p, [key]: value }));
+
+  // helper to set amount (ensures >= 0 and 2 decimals)
+  const setAmountPaid = (amount: number) => {
+    handleChange("receivedAmount", Math.max(0, amount).toFixed(2));
+  };
+
+  const payFull = () => {
+    if (!selectedInvoice) return;
+    const remaining = Number(selectedInvoice.remainingBalance) || 0;
+    if (remaining <= 0) return toast("Invoice is already fully paid.");
+    setAmountPaid(remaining);
+    toast.success("Full remaining balance filled in.");
+  };
+
+  const payHalf = () => {
+    if (!selectedInvoice) return;
+    const remaining = Number(selectedInvoice.remainingBalance) || 0;
+    if (remaining <= 0) return toast("Invoice is already fully paid.");
+    setAmountPaid(remaining / 2);
+    toast.success("50% of remaining balance filled in.");
+  };
+
+  // enable save only when form is valid
+  const canSave =
+    !!dto.invoiceId &&
+    !!dto.clientId &&
+    !!dto.collectionDate &&
+    !!dto.collectionReceiptNo.trim() &&
+    Number(dto.receivedAmount) > 0 &&
+    (!selectedInvoice || Number(dto.receivedAmount) <= Number(selectedInvoice.remainingBalance));
+
+  // keep a cheap flag for cheque UI
+  const isCheque = dto.paymentMethod === "Cheque";
+
+  // clear cheque fields when switching away from cheque
+  useEffect(() => {
+    if (dto.paymentMethod !== "Cheque") {
+      handleChange("chequeNo", "");
+      handleChange("chequeDate", "");
+      handleChange("chequeBank", "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dto.paymentMethod]);
 
   // Only local state + previews; actual upload happens on SAVE
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    setReceiptImages((prev) => [...prev, ...files]);
+    const valid: File[] = [];
+    const rejected: string[] = [];
 
-    const newPreviewUrls = files.map((file) => URL.createObjectURL(file));
+    for (const f of files) {
+      // 1) only images
+      if (!f.type.startsWith("image/")) {
+        rejected.push(`${f.name} (not an image)`);
+        continue;
+      }
+
+      // 2) size check
+      if (f.size > MAX_IMAGE_BYTES) {
+        rejected.push(`${f.name} (over ${MAX_IMAGE_MB}MB)`);
+        continue;
+      }
+
+      valid.push(f);
+    }
+
+    // optional: max count
+    const remainingSlots = Math.max(0, MAX_IMAGES - receiptImages.length);
+    const finalFiles = MAX_IMAGES ? valid.slice(0, remainingSlots) : valid;
+
+    if (rejected.length > 0) {
+      toast.error(`Some files were skipped:\n${rejected.join("\n")}`);
+    }
+
+    if (finalFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setReceiptImages((prev) => [...prev, ...finalFiles]);
+    const newPreviewUrls = finalFiles.map((file) => URL.createObjectURL(file));
     setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleRemoveImage = (index: number) => {
@@ -168,6 +255,13 @@ export default function EncodePaymentsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // cleanup object URLs on unmount / when previews change
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [previewUrls]);
+
   /* ---------------------------------------------
      SUBMIT PAYMENT
   --------------------------------------------- */
@@ -193,22 +287,22 @@ export default function EncodePaymentsPage() {
     setLoading(true);
 
     try {
-      // 1) Upload images on SAVE
+      // 1) Upload images on SAVE (parallelized)
       let imagePathString = "";
 
       if (receiptImages.length > 0) {
-        const uploadedPaths: string[] = [];
+        const uploadedPaths: string[] = await Promise.all(
+          receiptImages.map(async (file) => {
+            const formData = new FormData();
+            formData.append("file", file);
 
-        for (const file of receiptImages) {
-          const formData = new FormData();
-          formData.append("file", file);
+            const res = await api.post("/upload", formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
 
-          const res = await api.post("/upload", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-
-          uploadedPaths.push(res.data.path);
-        }
+            return res.data.path;
+          })
+        );
 
         imagePathString = uploadedPaths.join(";");
       }
@@ -338,32 +432,73 @@ export default function EncodePaymentsPage() {
             value={dto.collectionReceiptNo}
             onChange={(e) => handleChange("collectionReceiptNo", e.target.value)}
           />
-          <Input
-            label="Amount Paid *"
-            type="number"
-            value={dto.receivedAmount}
-            onChange={(e) => handleChange("receivedAmount", e.target.value)}
-          />
+
+          <div className="flex flex-col gap-2">
+            <Input
+              label="Amount Paid *"
+              type="number"
+              value={dto.receivedAmount}
+              onChange={(e) => handleChange("receivedAmount", e.target.value)}
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={payFull}
+                disabled={!selectedInvoice || Number(selectedInvoice.remainingBalance) <= 0}
+                className="text-sm px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Pay Full
+              </button>
+
+              <button
+                type="button"
+                onClick={payHalf}
+                disabled={!selectedInvoice || Number(selectedInvoice.remainingBalance) <= 0}
+                className="text-sm px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Pay 50%
+              </button>
+            </div>
+          </div>
+
           <Input
             label="Reference No"
             value={dto.referenceNo}
             onChange={(e) => handleChange("referenceNo", e.target.value)}
           />
+
+          {/* Payment Method select */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+            <select
+              className="input"
+              value={dto.paymentMethod}
+              onChange={(e) => handleChange("paymentMethod", e.target.value as PaymentMethod)}
+            >
+              <option value="Cash">Cash</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+
           <Input
             label="Cheque No"
             value={dto.chequeNo}
             onChange={(e) => handleChange("chequeNo", e.target.value)}
+            disabled={!isCheque}
           />
           <Input
             label="Cheque Date"
             type="date"
             value={dto.chequeDate}
             onChange={(e) => handleChange("chequeDate", e.target.value)}
+            disabled={!isCheque}
           />
           <Input
             label="Cheque Bank"
             value={dto.chequeBank}
             onChange={(e) => handleChange("chequeBank", e.target.value)}
+            disabled={!isCheque}
           />
           <Input
             label="Withheld Tax"
@@ -378,6 +513,10 @@ export default function EncodePaymentsPage() {
           <UploadCloud className="text-gray-500" size={40} />
           <p className="mt-3 text-gray-700 font-medium">
             Upload Proof of Payment (optional)
+          </p>
+
+          <p className="text-xs text-gray-500 mt-1">
+            Max {MAX_IMAGE_MB}MB per image{MAX_IMAGES ? `, up to ${MAX_IMAGES} images` : ""}.
           </p>
 
           <label
@@ -422,7 +561,7 @@ export default function EncodePaymentsPage() {
         {/* ------- SAVE BUTTON ------- */}
         <button
           onClick={submitPayment}
-          disabled={loading}
+          disabled={!canSave || loading}
           className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
         >
           {loading ? "Saving..." : "Save Payment"}
@@ -441,16 +580,24 @@ function Input({
   type = "text",
   value,
   onChange,
+  disabled,
 }: {
   label: string;
   type?: string;
   value?: any;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex flex-col">
       <label className="text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input className="input" type={type} value={value} onChange={onChange} />
+      <input
+        className="input"
+        type={type}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
     </div>
   );
 }

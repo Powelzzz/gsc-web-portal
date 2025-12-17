@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Download } from "lucide-react";
 import api from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 /* ---------------------------------------------
    TYPES
@@ -39,15 +40,20 @@ export default function CollectedPaymentsReportPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
+
   /* LOAD PAYMENTS FROM API */
   const loadPayments = async () => {
     try {
       setLoading(true);
 
-      const params: Record<string, string> = {};
+      const params: Record<string, any> = {};
 
       if (invoiceSearch.trim()) params.invoice = invoiceSearch.trim();
-      if (clientSearch.trim()) params.client = clientSearch.trim();
+      // backend expects clientId (int) — only include when the input is numeric
+      if (clientSearch.trim() && !isNaN(Number(clientSearch))) {
+        params.clientId = Number(clientSearch);
+      }
       if (dateFrom) params.from = dateFrom;
       if (dateTo) params.to = dateTo;
 
@@ -189,14 +195,18 @@ export default function CollectedPaymentsReportPage() {
         {/* FILTER FIELDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Input placeholder="Invoice #" value={invoiceSearch} onChange={(e) => setInvoiceSearch(e.target.value)} />
-          <Input placeholder="Client Name" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} />
+          <Input placeholder="Client ID" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} />
 
           <DateInput label="From Date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <DateInput label="To Date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
 
         {/* TABLE */}
-        <PaymentsTable payments={payments} loading={loading} />
+        <PaymentsTable
+          payments={payments}
+          loading={loading}
+          onView={(id) => router.push(`/accounting/payments/${id}`)}
+        />
       </div>
     </div>
   );
@@ -205,71 +215,45 @@ export default function CollectedPaymentsReportPage() {
 /* ---------------------------------------------
    TABLE COMPONENT
 --------------------------------------------- */
-function PaymentsTable({ payments, loading }: { payments: Payment[]; loading: boolean }) {
+function PaymentsTable({
+  payments,
+  loading,
+  onView,
+}: {
+  payments: Payment[];
+  loading: boolean;
+  onView: (id: number) => void;
+}) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-gray-600">
-          <tr className="text-left uppercase text-xs tracking-wide">
-            <th className="py-3 px-4">Date</th>
-            <th className="py-3 px-4">Client</th>
-            <th className="py-3 px-4">Invoice No.</th>
-            <th className="py-3 px-4">OR Number</th>
-            <th className="py-3 px-4">Amount</th>
-            <th className="py-3 px-4">Payment Type</th>
-            <th className="py-3 px-4">Ref / Cheque No.</th>
-            <th className="py-3 px-4">Bank</th>
-            <th className="py-3 px-4">WHT</th>
+      <table className="w-full table-auto">
+        <thead>
+          <tr>
+            <th className="py-3 px-4 text-left">Invoice</th>
+            <th className="py-3 px-4 text-left">Client</th>
+            <th className="py-3 px-4 text-left">Date</th>
+            <th className="py-3 px-4 text-right">Amount</th>
+            {/* Action header */}
+            <th className="py-3 px-4">Action</th>
           </tr>
         </thead>
-
         <tbody>
-          {loading && (
-            <tr>
-              <td colSpan={9} className="text-center py-16 text-gray-400">
-                Loading payments...
+          {payments.map((p) => (
+            <tr key={p.id} className="border-t">
+              <td className="py-3 px-4">{p.invoiceNo}</td>
+              <td className="py-3 px-4">{p.client}</td>
+              <td className="py-3 px-4">{p.collectionDate.split("T")[0]}</td>
+              <td className="py-3 px-4 text-right">₱{p.receivedAmount.toLocaleString()}</td>
+              <td className="py-3 px-4">
+                <button
+                  onClick={() => onView(p.id)}
+                  className="text-blue-600 hover:underline text-sm"
+                >
+                  View
+                </button>
               </td>
             </tr>
-          )}
-
-          {!loading && payments.length === 0 && (
-            <tr>
-              <td colSpan={9} className="text-center py-12 text-gray-400">No results found</td>
-            </tr>
-          )}
-
-          {!loading &&
-            payments.map((p) => {
-              const type = p.chequeNo ? "Cheque" : p.referenceNo ? "Bank Transfer" : "Cash";
-
-              return (
-                <tr key={p.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="py-3 px-4">{new Date(p.collectionDate).toLocaleDateString()}</td>
-                  <td className="py-3 px-4">{p.client}</td>
-                  <td className="py-3 px-4">{p.invoiceNo}</td>
-                  <td className="py-3 px-4">{p.collectionReceiptNo ?? "-"}</td>
-                  <td className="py-3 px-4 font-semibold text-green-700">₱{p.receivedAmount.toLocaleString()}</td>
-
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        type === "Cash"
-                          ? "bg-green-100 text-green-700"
-                          : type === "Cheque"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-purple-100 text-purple-700"
-                      }`}
-                    >
-                      {type}
-                    </span>
-                  </td>
-
-                  <td className="py-3 px-4">{p.chequeNo || p.referenceNo || "-"}</td>
-                  <td className="py-3 px-4">{p.chequeBank ?? "-"}</td>
-                  <td className="py-3 px-4">{p.withHeldTax ? `₱${Number(p.withHeldTax).toLocaleString()}` : "-"}</td>
-                </tr>
-              );
-            })}
+          ))}
         </tbody>
       </table>
     </div>

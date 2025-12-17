@@ -23,20 +23,17 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
-        // Clear localStorage
         localStorage.removeItem("gc_token");
         localStorage.removeItem("gc_user_role");
         localStorage.removeItem("gc_user_firstname");
         localStorage.removeItem("gc_user_lastname");
-        localStorage.removeItem("gc_permissions"); // ✅ include this too
+        localStorage.removeItem("gc_permissions");
 
-        // Clear cookie
         document.cookie = "gc_token=; path=/; max-age=0";
         document.cookie = "gc_user_role=; path=/; max-age=0";
 

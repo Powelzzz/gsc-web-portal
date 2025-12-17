@@ -19,14 +19,18 @@ type InvoiceListItem = {
 export default function InvoiceListPage() {
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadInvoices() {
+      setError(null);
       try {
         const res = await api.get("/accounting/invoices");
         setInvoices(res.data);
+        setError(null);
       } catch (err) {
         console.error("Failed to load invoices", err);
+        setError("Failed to load invoices. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -39,7 +43,7 @@ export default function InvoiceListPage() {
   // STATUS LOGIC
   // ------------------------------
   function getStatus(inv: InvoiceListItem) {
-    const total = parseFloat(inv.totalAmount || "0");
+    const total = Number(inv.totalAmount ?? 0);
     const paid = inv.totalPaid;
 
     // Fully paid
@@ -71,6 +75,13 @@ export default function InvoiceListPage() {
     }
   }
 
+  // single shared currency formatter
+  const money = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+  });
+
   return (
     <div className="p-6 space-y-6">
       {/* Title */}
@@ -85,9 +96,11 @@ export default function InvoiceListPage() {
         </Link>
       </header>
 
-      {/* Loading state */}
+      {/* Loading / Error / Empty state */}
       {loading ? (
         <p className="text-gray-500 italic">Loading invoices...</p>
+      ) : error ? (
+        <p className="text-red-500 italic">{error}</p>
       ) : invoices.length === 0 ? (
         <p className="text-gray-400 italic">No invoices found.</p>
       ) : (
@@ -142,11 +155,7 @@ export default function InvoiceListPage() {
 
                     {/* Total */}
                     <td className="px-3 py-2 text-right">
-                      ₱{" "}
-                      {parseFloat(inv.totalAmount || "0").toLocaleString(
-                        undefined,
-                        { minimumFractionDigits: 2 }
-                      )}
+                      {money.format(Number(inv.totalAmount ?? 0))}
                     </td>
 
                     {/* ACTION BUTTON */}

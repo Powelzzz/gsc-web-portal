@@ -10,7 +10,7 @@ interface Trip {
   truck: string;
   client: string;
   status: string;
-  date: string; // ISO string from API
+  date: string; // yyyy-mm-dd
 }
 
 export default function TripOverviewList() {
@@ -19,6 +19,19 @@ export default function TripOverviewList() {
   // === STATE ===
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // === FILTER STATES ===
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDriver, setFilterDriver] = useState("All");
+
+  // ✅ DATE FILTER (RANGE)
+  const [dateFrom, setDateFrom] = useState(""); // yyyy-mm-dd
+  const [dateTo, setDateTo] = useState(""); // yyyy-mm-dd
+
+  // === PAGINATION ===
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
 
   // === LOAD TRIPS FROM API ===
   useEffect(() => {
@@ -43,16 +56,12 @@ export default function TripOverviewList() {
           id: t.id,
           driver: t.driver ? `${t.driver.firstName} ${t.driver.lastName}` : "No Driver",
           truck: t.truck ? t.truck.plateNumber : "No Truck",
-          client: t.client
-  ? (t.client.registeredCompanyName || t.client.codeName)
-  : "No Client",
-
+          client: t.client ? (t.client.registeredCompanyName || t.client.codeName) : "No Client",
           status: t.status,
           date: t.pickUpDate ? t.pickUpDate.split("T")[0] : "",
         }));
 
         setTrips(mapped);
-
       } catch (err) {
         console.error("Error loading trips:", err);
       } finally {
@@ -65,10 +74,10 @@ export default function TripOverviewList() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // === FILTER STATES ===
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [filterDriver, setFilterDriver] = useState("All");
+  // ✅ Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus, filterDriver, dateFrom, dateTo]);
 
   // === BADGE COLORS ===
   const badge = (status: string) => {
@@ -77,15 +86,14 @@ export default function TripOverviewList() {
     return "bg-yellow-600";
   };
 
-  // === SORT + FILTER ===
+  // === FILTER + SORT (Most Recent First) ===
   const filteredTrips = useMemo<Trip[]>(() => {
     let list = [...trips];
 
     // Search by client
     if (search.trim()) {
-      list = list.filter((t) =>
-        t.client.toLowerCase().includes(search.toLowerCase())
-      );
+      const q = search.toLowerCase();
+      list = list.filter((t) => t.client.toLowerCase().includes(q));
     }
 
     // Filter by status
@@ -98,21 +106,37 @@ export default function TripOverviewList() {
       list = list.filter((t) => t.driver === filterDriver);
     }
 
-    // Sort: Today → Past → Future
+    // ✅ Filter by date range (inclusive)
+    if (dateFrom) {
+      list = list.filter((t) => t.date && t.date >= dateFrom);
+    }
+    if (dateTo) {
+      list = list.filter((t) => t.date && t.date <= dateTo);
+    }
+
+    // Sort: Most recent date first (blank dates go last)
     list.sort((a, b) => {
-      const aIsToday = a.date === today;
-      const bIsToday = b.date === today;
-
-      if (aIsToday && !bIsToday) return -1;
-      if (!aIsToday && bIsToday) return 1;
-
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+      const aTime = a.date ? new Date(a.date).getTime() : -Infinity;
+      const bTime = b.date ? new Date(b.date).getTime() : -Infinity;
+      return bTime - aTime;
     });
 
     return list;
-  }, [trips, search, filterStatus, filterDriver, today]);
+  }, [trips, search, filterStatus, filterDriver, dateFrom, dateTo]);
 
-  const allDrivers = ["All", ...new Set(trips.map((t) => t.driver))];
+  // === PAGINATION DERIVED ===
+  const total = filteredTrips.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const paginatedTrips = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredTrips.slice(start, start + PAGE_SIZE);
+  }, [filteredTrips, page]);
+
+  const allDrivers = useMemo(
+    () => ["All", ...Array.from(new Set(trips.map((t) => t.driver)))],
+    [trips]
+  );
 
   if (loading) return <p>Loading trips...</p>;
 
@@ -121,7 +145,7 @@ export default function TripOverviewList() {
       <h1 className="text-2xl font-bold mb-6">Trip Overview</h1>
 
       {/* FILTERS */}
-      <div className="bg-white p-4 shadow mb-6 rounded-lg flex flex-wrap gap-4">
+      <div className="bg-white p-4 shadow mb-6 rounded-lg flex flex-wrap gap-4 items-center">
         {/* Search */}
         <input
           type="text"
@@ -153,6 +177,43 @@ export default function TripOverviewList() {
             <option key={i}>{d}</option>
           ))}
         </select>
+
+        {/* ✅ Date From */}
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="border px-3 py-2 rounded"
+        />
+
+        {/* ✅ Date To */}
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="border px-3 py-2 rounded"
+        />
+
+        {/* ✅ Clear Dates */}
+        <button
+          type="button"
+          onClick={() => {
+            setDateFrom("");
+            setDateTo("");
+          }}
+          className="border px-3 py-2 rounded"
+        >
+          Clear Dates
+        </button>
+
+        {/* Count */}
+        <div className="ml-auto text-sm text-gray-600">
+          Showing{" "}
+          <span className="font-semibold">
+            {total === 0 ? 0 : Math.min(PAGE_SIZE, total - (page - 1) * PAGE_SIZE)}
+          </span>{" "}
+          of <span className="font-semibold">{total}</span>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -171,7 +232,7 @@ export default function TripOverviewList() {
           </thead>
 
           <tbody>
-            {filteredTrips.map((t) => {
+            {paginatedTrips.map((t) => {
               const isUpcoming = t.date > today;
 
               return (
@@ -181,35 +242,60 @@ export default function TripOverviewList() {
                   <td className="p-3">{t.truck}</td>
                   <td className="p-3">{t.client}</td>
                   <td className="p-3">
-                    <span
-                      className={`px-2 py-1 rounded text-white text-xs ${badge(
-                        t.status
-                      )}`}
-                    >
+                    <span className={`px-2 py-1 rounded text-white text-xs ${badge(t.status)}`}>
                       {t.status}
                     </span>
                   </td>
-                  <td className="p-3">{t.date}</td>
+                  <td className="p-3">{t.date || "-"}</td>
 
                   <td className="p-3">
                     {!isUpcoming ? (
-                      <Link
-                        href={`/admin/tripoverviewlist/${t.id}`}
-                        className="text-blue-600 hover:underline"
-                      >
+                      <Link href={`/admin/tripoverviewlist/${t.id}`} className="text-blue-600 hover:underline">
                         View Details
                       </Link>
                     ) : (
-                      <span className="text-gray-400 cursor-not-allowed">
-                        Upcoming Trip
-                      </span>
+                      <span className="text-gray-400 cursor-not-allowed">Upcoming Trip</span>
                     )}
                   </td>
                 </tr>
               );
             })}
+
+            {paginatedTrips.length === 0 && (
+              <tr>
+                <td colSpan={7} className="p-6 text-center text-gray-500">
+                  No trips found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+      </div>
+
+      {/* PAGINATION CONTROLS */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Page <span className="font-semibold">{page}</span> of{" "}
+          <span className="font-semibold">{totalPages}</span>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            className="border px-3 py-2 rounded disabled:opacity-50"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Prev
+          </button>
+
+          <button
+            className="border px-3 py-2 rounded disabled:opacity-50"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
