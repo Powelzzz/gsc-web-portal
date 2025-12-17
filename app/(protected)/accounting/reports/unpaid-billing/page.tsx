@@ -8,8 +8,8 @@ import axios from "axios";
 type UnpaidInvoiceRow = {
   id: number;
   invoiceNo: string;
-  client: string; // backend is Client.CodeName
-  generateDate: string; // serialized date
+  client: string;
+  generateDate: string;
   dateSent: string | null;
   billedAmount: number;
   paidAmount: number;
@@ -17,12 +17,19 @@ type UnpaidInvoiceRow = {
   agingDays: number;
 };
 
+type PagedResult<T> = {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: T[];
+};
+
 function fmtDate(d?: string | null) {
   return d ? d.split("T")[0] : "-";
 }
 
 function fmtMoney(n: number) {
-  return `₱${(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  return `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }
 
 function getApiErrorMessage(err: unknown) {
@@ -42,50 +49,99 @@ export default function UnpaidBillingReports() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
+  // filters
   const [clientCode, setClientCode] = useState("");
   const [clientName, setClientName] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // 1) Build params (only include if value exists)
+  // paging (NEW)
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const [total, setTotal] = useState(0);
+
+  // sorting (NEW, minimal)
+  const [sortBy, setSortBy] = useState<"generateDate" | "remaining" | "agingDays">("generateDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // 1) Build params
   const reportParams = useMemo(() => {
     const p: Record<string, any> = {};
+
     if (dateFrom) p.from = dateFrom;
     if (dateTo) p.to = dateTo;
     if (clientCode.trim()) p.clientCode = clientCode.trim();
     if (clientName.trim()) p.clientName = clientName.trim();
     if (invoiceNo.trim()) p.invoiceNo = invoiceNo.trim();
-    return p;
-  }, [dateFrom, dateTo, clientCode, clientName, invoiceNo]);
 
-  // 2) Load report data
+    // paging + sorting
+    p.page = page;
+    p.pageSize = pageSize;
+    p.sortBy = sortBy;
+    p.sortDir = sortDir;
+
+    return p;
+  }, [dateFrom, dateTo, clientCode, clientName, invoiceNo, page, sortBy, sortDir]);
+
+  // 2) Load report data (UPDATED for paged response)
   const loadData = async () => {
     try {
       setError("");
       setLoading(true);
 
-      const res = await api.get("/accounting/reports/unpaid", { params: reportParams });
-      setData(Array.isArray(res.data) ? res.data : []);
+      const res = await api.get<PagedResult<UnpaidInvoiceRow>>("/accounting/reports/unpaid", {
+        params: reportParams,
+      });
+
+      const items = Array.isArray(res.data?.items) ? res.data.items : [];
+      setData(items);
+      setTotal(Number(res.data?.total ?? 0));
     } catch (err) {
       setData([]);
+      setTotal(0);
       setError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
+  // initial load
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // handle Enter key on inputs to trigger search
-  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") loadData();
+  // reload when page/sort changes (NEW)
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, sortBy, sortDir]);
+
+  // Apply filters: reset to page 1 (NEW)
+  const applyFilters = () => {
+    setPage(1);
+    loadData();
   };
 
-  // 3) Export CSV (backend only uses from/to)
+  // Enter key triggers Apply (NEW)
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") applyFilters();
+  };
+
+  // Clear filters (NEW)
+  const clearFilters = () => {
+    setClientCode("");
+    setClientName("");
+    setInvoiceNo("");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+    // keep sort as-is
+    loadData();
+  };
+
+  // 3) Export CSV (UPDATED: send same filters to backend)
   const exportCsv = async () => {
     try {
       setError("");
@@ -94,6 +150,9 @@ export default function UnpaidBillingReports() {
       const params: Record<string, any> = {};
       if (dateFrom) params.from = dateFrom;
       if (dateTo) params.to = dateTo;
+      if (clientCode.trim()) params.clientCode = clientCode.trim();
+      if (clientName.trim()) params.clientName = clientName.trim();
+      if (invoiceNo.trim()) params.invoiceNo = invoiceNo.trim();
 
       const res = await api.get("/accounting/reports/unpaid/export", {
         params,
@@ -118,7 +177,7 @@ export default function UnpaidBillingReports() {
     }
   };
 
-  // 4) Summary computations
+  // 4) Summary computations (NOTE: summaries are per-page now)
   const totalUnpaid = useMemo(() => data.reduce((s, x) => s + (x.remaining ?? 0), 0), [data]);
   const totalInvoices = data.length;
   const totalClients = useMemo(() => new Set(data.map((x) => x.client)).size, [data]);
@@ -133,13 +192,29 @@ export default function UnpaidBillingReports() {
   const aging61to90 = useMemo(() => bucket(61, 90), [data]);
   const agingOver90 = useMemo(() => bucket(91), [data]);
 
+  // paging helpers
+  const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const showingTo = Math.min(page * pageSize, total);
+  const canPrev = page > 1;
+  const canNext = page * pageSize < total;
+
+  // tiny sort toggles (NEW)
+  const toggleSort = (col: typeof sortBy) => {
+    if (sortBy !== col) {
+      setSortBy(col);
+      setSortDir("desc");
+      setPage(1);
+      return;
+    }
+    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    setPage(1);
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-10">
       {/* HEADER */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-          Unpaid Billing Reports
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Unpaid Billing Reports</h1>
         <p className="text-gray-500">View all outstanding invoices, aging, and unpaid balances.</p>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </div>
@@ -192,23 +267,33 @@ export default function UnpaidBillingReports() {
           </div>
         </div>
 
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg transition ${
-            loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          <Search size={18} />
-          {loading ? "Loading..." : "Apply Filters"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={applyFilters}
+            disabled={loading}
+            className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg transition ${
+              loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            <Search size={18} />
+            {loading ? "Loading..." : "Apply Filters"}
+          </button>
+
+          <button
+            onClick={clearFilters}
+            disabled={loading}
+            className="px-5 py-2.5 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
-      {/* SUMMARY CARDS */}
+      {/* SUMMARY CARDS (per-page) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <SummaryCard label="Total Unpaid Amount" value={fmtMoney(totalUnpaid)} />
-        <SummaryCard label="Total Unpaid Invoices" value={totalInvoices} />
-        <SummaryCard label="Clients with Outstanding Balance" value={totalClients} />
+        <SummaryCard label="Total Unpaid Amount (This Page)" value={fmtMoney(totalUnpaid)} />
+        <SummaryCard label="Unpaid Invoices (This Page)" value={totalInvoices} />
+        <SummaryCard label="Clients (This Page)" value={totalClients} />
       </div>
 
       {/* TABLE */}
@@ -236,10 +321,21 @@ export default function UnpaidBillingReports() {
                 <th className="pb-3">Client</th>
                 <th className="pb-3">Billed</th>
                 <th className="pb-3">Paid</th>
-                <th className="pb-3">Remaining</th>
-                <th className="pb-3">Generate Date</th>
+
+                {/* minimal clickable sorts */}
+                <th className="pb-3 cursor-pointer select-none" onClick={() => toggleSort("remaining")}>
+                  Remaining {sortBy === "remaining" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                </th>
+
+                <th className="pb-3 cursor-pointer select-none" onClick={() => toggleSort("generateDate")}>
+                  Generate Date {sortBy === "generateDate" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                </th>
+
                 <th className="pb-3">Date Sent</th>
-                <th className="pb-3">Aging (Days)</th>
+
+                <th className="pb-3 cursor-pointer select-none" onClick={() => toggleSort("agingDays")}>
+                  Aging (Days) {sortBy === "agingDays" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                </th>
               </tr>
             </thead>
 
@@ -273,11 +369,35 @@ export default function UnpaidBillingReports() {
             </tbody>
           </table>
         </div>
+
+        {/* PAGINATION FOOTER (NEW) */}
+        <div className="flex items-center justify-between pt-4">
+          <div className="text-sm text-gray-500">
+            Showing {showingFrom}–{showingTo} of {total}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              className="px-3 py-2 border rounded-lg disabled:opacity-50"
+              disabled={loading || !canPrev}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Prev
+            </button>
+            <button
+              className="px-3 py-2 border rounded-lg disabled:opacity-50"
+              disabled={loading || !canNext}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* AGING BREAKDOWN */}
+      {/* AGING BREAKDOWN (per-page) */}
       <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-        <h2 className="text-lg font-semibold text-gray-800">Aging Breakdown</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Aging Breakdown (This Page)</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <BreakdownCard label="0 - 30 Days" value={fmtMoney(aging0to30)} />
