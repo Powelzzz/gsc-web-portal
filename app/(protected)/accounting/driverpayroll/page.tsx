@@ -89,7 +89,7 @@ export default function DriverPayrollPage() {
   /* ---------------------------------------------
      STATUS NORMALIZER
   --------------------------------------------- */
-  const normalizeStatus = (raw: any): PayrollStatus => {
+  const normalizeStatus = (raw: unknown): PayrollStatus => {
     const v = String(raw ?? "").trim().toUpperCase();
     switch (v) {
       case "GENERATED":
@@ -118,7 +118,7 @@ export default function DriverPayrollPage() {
   /* ---------------------------------------------
      LOAD OVERVIEW
   --------------------------------------------- */
-  const loadOverview = async () => {
+    const loadOverview = async () => {
     setLoading(true);
     setError(null);
 
@@ -138,40 +138,61 @@ export default function DriverPayrollPage() {
         throw new Error(`Failed to load payroll (${res.status}): ${msg}`);
       }
 
-      const data: any[] = await res.json();
+      const data = (await res.json()) as unknown[];
 
       const mapped: PayrollRow[] = data.map((r) => {
-        const driverId = Number(r.DriverId ?? r.driverId ?? 0);
-        const driverName = String(r.DriverName ?? r.driverName ?? "");
-        const tripCount = Number(r.TripCount ?? r.tripCount ?? 0);
-        const payrollId = r.PayrollId ?? r.payrollId ?? null;
+        const o = (r ?? {}) as Record<string, unknown>;
+
+        const pick = (...keys: string[]) => {
+          for (const k of keys) {
+            const v = o[k];
+            if (v !== undefined && v !== null) return v;
+          }
+          return undefined;
+        };
+
+        const driverId = Number(pick("DriverId", "driverId") ?? 0);
+        const driverName = String(pick("DriverName", "driverName") ?? "");
+        const tripCount = Number(pick("TripCount", "tripCount") ?? 0);
+
+        const payrollIdRaw = pick("PayrollId", "payrollId");
+        const payrollIdNum =
+          payrollIdRaw === undefined || payrollIdRaw === null ? null : Number(payrollIdRaw);
+        const payrollId = payrollIdNum != null && !Number.isNaN(payrollIdNum) ? payrollIdNum : null;
 
         const computedTotalWeightKg = Number(
-          r.ComputedTotalWeightKg ?? r.computedTotalWeightKg ?? r.TotalWeight ?? r.totalWeight ?? 0
+          pick("ComputedTotalWeightKg", "computedTotalWeightKg", "TotalWeight", "totalWeight") ?? 0
         );
+
         const computedRatePerKg = Number(
-          r.ComputedRatePerKg ?? r.computedRatePerKg ?? r.RatePerKg ?? r.ratePerKg ?? 0
+          pick("ComputedRatePerKg", "computedRatePerKg", "RatePerKg", "ratePerKg") ?? 0
         );
+
         const computedPayableAmount =
-          r.ComputedPayableAmount != null
-            ? Number(r.ComputedPayableAmount)
-            : r.computedPayableAmount != null
-            ? Number(r.computedPayableAmount)
-            : r.PayableAmount != null
-            ? Number(r.PayableAmount)
-            : r.payableAmount != null
-            ? Number(r.payableAmount)
+          pick("ComputedPayableAmount") != null
+            ? Number(pick("ComputedPayableAmount"))
+            : pick("computedPayableAmount") != null
+            ? Number(pick("computedPayableAmount"))
+            : pick("PayableAmount") != null
+            ? Number(pick("PayableAmount"))
+            : pick("payableAmount") != null
+            ? Number(pick("payableAmount"))
             : round2(computedTotalWeightKg * computedRatePerKg);
 
         const totalWeightKg = Number(
-          r.TotalWeightKg ?? r.totalWeightKg ?? r.TotalWeight ?? r.totalWeight ?? computedTotalWeightKg
+          pick("TotalWeightKg", "totalWeightKg", "TotalWeight", "totalWeight") ?? computedTotalWeightKg
         );
-        const payableAmount = Number(r.PayableAmount ?? r.payableAmount ?? computedPayableAmount);
-        const ratePerKg = Number(r.RatePerKg ?? r.ratePerKg ?? computedRatePerKg); // reference only
 
-        const paidAmount = Number(r.PaidAmount ?? r.paidAmount ?? 0);
-        const status: PayrollStatus = normalizeStatus(r.Status ?? r.status);
-        const generatedAt = status === "PREVIEW" ? "" : String(r.GeneratedAt ?? r.generatedAt ?? nowLocalStamp());
+        const payableAmount = Number(pick("PayableAmount", "payableAmount") ?? computedPayableAmount);
+        const ratePerKg = Number(pick("RatePerKg", "ratePerKg") ?? computedRatePerKg); // reference only
+
+        const paidAmount = Number(pick("PaidAmount", "paidAmount") ?? 0);
+
+        const status: PayrollStatus = normalizeStatus(pick("Status", "status"));
+        const generatedAt =
+          status === "PREVIEW"
+            ? ""
+            : String(pick("GeneratedAt", "generatedAt") ?? nowLocalStamp());
 
         return {
           id: driverId,
@@ -193,14 +214,16 @@ export default function DriverPayrollPage() {
           paidAmount,
           status,
           generatedAt,
-          discrepancyNote: String(r.DiscrepancyNote ?? r.discrepancyNote ?? ""),
+          discrepancyNote: String(pick("DiscrepancyNote", "discrepancyNote") ?? ""),
         };
       });
 
       setRows(mapped);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setRows([]);
-      setError(e?.message ?? "Failed to load payroll");
+      const msg =
+        e instanceof Error ? e.message : typeof e === "string" ? e : "Failed to load payroll";
+      setError(msg);
     } finally {
       setLoading(false);
     }

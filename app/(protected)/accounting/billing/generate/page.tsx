@@ -662,7 +662,7 @@ export default function BillingGeneratePage() {
             <select
               value={sortBy}
               onChange={(e) => {
-                setSortBy(e.target.value as any);
+                setSortBy(e.target.value as "pickUpDate" | "receiptNumber" | "weightHauled");
                 setTripPage(1);
               }}
               className="border rounded-lg px-3 py-2"
