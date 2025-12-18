@@ -76,7 +76,7 @@ export default function DriverPayrollPage() {
   const [modalTripsLoading, setModalTripsLoading] = useState(false);
   const [modalTripsError, setModalTripsError] = useState<string | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const getTokenOrThrow = (): string => {
     const token = localStorage.getItem("gc_token");
