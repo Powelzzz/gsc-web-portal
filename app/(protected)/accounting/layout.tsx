@@ -243,6 +243,15 @@ function AccountingSidebar({
                 label="Collected Payments Report"
               />
             )}
+
+            {hasPermission("invoices.upload_sent") && (
+              <SidebarItem
+              open={open}
+              href="/accounting/billing/sent"
+              icon={<FolderKanban size={20} />}
+              label="Upload Sent Billing"
+            />
+            )}
           </>
         )}
 
