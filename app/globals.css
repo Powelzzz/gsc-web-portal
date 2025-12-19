@@ -116,6 +116,35 @@ body {
   }
 }
 
+/* ========================= */
+/* FIX MOBILE DATE INPUT UI */
+/* ========================= */
+
+/* Force date inputs to use light UI even in dark mode */
+input[type="date"] {
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #111111;
+}
+
+/* Ensure readable text on iOS Safari */
+input[type="date"]::-webkit-datetime-edit {
+  color: #111111;
+}
+
+/* Fix placeholder-looking empty value */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #111111;
+}
+
+/* Keep calendar icon visible */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  filter: invert(0);
+}
 
 
 

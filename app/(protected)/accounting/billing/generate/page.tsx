@@ -60,6 +60,29 @@ function useDebouncedValue<T>(value: T, delay = 350) {
   return debounced;
 }
 
+function DateInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-gray-800">{label}</label>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input h-11"
+      />
+    </div>
+  );
+}
+
+
 const fmtMoney = (n: number) =>
   n.toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -650,30 +673,23 @@ export default function BillingGeneratePage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">From</label>
-              <input
-                type="date"
+              <DateInput
+                label="From"
                 value={dateFrom}
-                onChange={(e) => {
-                  setDateFrom(e.target.value);
-                  setTripPage(1);
-                }}
-                className="w-full mt-1 border rounded-lg px-3 py-2"
+                onChange={setDateFrom}
               />
             </div>
-
             <div>
-              <label className="text-sm font-medium">To</label>
-              <input
-                type="date"
+              <DateInput
+                label="To"
                 value={dateTo}
-                onChange={(e) => {
-                  setDateTo(e.target.value);
-                  setTripPage(1);
-                }}
-                className="w-full mt-1 border rounded-lg px-3 py-2"
+                onChange={setDateTo}
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+
           </div>
 
           <div className="flex items-center justify-between gap-2">
