@@ -466,11 +466,6 @@ export default function EncodeRatesPage() {
         <h2 className="text-lg font-semibold mb-5">Add New Service Rate</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <LabeledInput
-            label="Search Client"
-            value={clientSearch}
-            onChange={(e) => setClientSearch(e.target.value)}
-          />
 
           <LabeledSelect
             label="Client"
