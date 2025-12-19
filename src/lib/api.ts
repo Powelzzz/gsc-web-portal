@@ -1,29 +1,20 @@
-import axios, {
-  AxiosError,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from "axios";
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
 
-const RAW =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8080";
-
-const API_ORIGIN = RAW.trim().replace(/\/+$/, "");
+const API_ORIGIN =
+  (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080").trim();
 
 const api = axios.create({
   baseURL: `${API_ORIGIN}/api`,
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach token
+
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("gc_token") : null;
 
-    if (token) {
-      config.headers = config.headers ?? {};
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -32,7 +23,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Auto logout on 401
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
