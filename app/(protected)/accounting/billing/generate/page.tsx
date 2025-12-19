@@ -38,11 +38,11 @@ function getApiErrorMessage(err: unknown) {
     const data = err.response?.data;
 
     if (typeof data === "string") return `(${status}) ${data}`;
-    if (data?.message) return `(${status}) ${data.message}`;
-    if (data?.error) return `(${status}) ${data.error}`;
-    if (data?.title) return `(${status}) ${data.title}`;
-    if (data?.errors)
-      return `(${status}) Validation error: ${JSON.stringify(data.errors)}`;
+    if ((data as any)?.message) return `(${status}) ${(data as any).message}`;
+    if ((data as any)?.error) return `(${status}) ${(data as any).error}`;
+    if ((data as any)?.title) return `(${status}) ${(data as any).title}`;
+    if ((data as any)?.errors)
+      return `(${status}) Validation error: ${JSON.stringify((data as any).errors)}`;
 
     return `(${status}) ${err.message}`;
   }
@@ -61,7 +61,10 @@ function useDebouncedValue<T>(value: T, delay = 350) {
 }
 
 const fmtMoney = (n: number) =>
-  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 export default function BillingGeneratePage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -120,9 +123,9 @@ export default function BillingGeneratePage() {
 
   function openMsg(kind: ModalKind, title: string, body: string) {
     setMsgKind(kind);
-    setMsgTitle(title);  
+    setMsgTitle(title);
     setMsgBody(body);
-    setMsgOpen(true); 
+    setMsgOpen(true);
   }
 
   const router = useRouter();
@@ -398,7 +401,6 @@ export default function BillingGeneratePage() {
       setTripPage(1);
 
       router.refresh();
-
     } catch (err) {
       const msg = getApiErrorMessage(err);
       console.error("Failed to generate invoice:", msg);
@@ -422,7 +424,7 @@ export default function BillingGeneratePage() {
     (selectedClientId ? `Client #${selectedClientId}` : "-");
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-4 md:p-6 space-y-6 md:space-y-8 max-w-7xl mx-auto pb-24 md:pb-6">
       {/* ✅ Confirm Modal */}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -430,7 +432,7 @@ export default function BillingGeneratePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => !savingInvoice && setShowConfirm(false)}
           />
-          <div className="relative w-full max-w-lg bg-white rounded-xl shadow-lg border p-6">
+          <div className="relative w-full max-w-lg bg-white rounded-xl shadow-lg border p-6 mx-4">
             <h3 className="text-lg font-semibold text-gray-800">
               Confirm Invoice Generation
             </h3>
@@ -439,24 +441,28 @@ export default function BillingGeneratePage() {
             </p>
 
             <div className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Client</span>
-                <span className="font-medium text-gray-800">{confirmClientName}</span>
+                <span className="font-medium text-gray-800 text-right">
+                  {confirmClientName}
+                </span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Invoice No.</span>
-                <span className="font-medium text-gray-800">{invoiceNumber.trim()}</span>
+                <span className="font-medium text-gray-800">
+                  {invoiceNumber.trim()}
+                </span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Selected trips</span>
                 <span className="font-medium text-gray-800">
                   {selectedTripIds.size.toLocaleString()}
                 </span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Total weight</span>
                 <span className="font-medium text-gray-800">
                   {selectedTotalWeight.toLocaleString()} kg
@@ -465,24 +471,32 @@ export default function BillingGeneratePage() {
 
               <hr className="my-2" />
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Subtotal</span>
-                <span className="font-semibold text-gray-800">₱ {fmtMoney(subtotal)}</span>
+                <span className="font-semibold text-gray-800">
+                  ₱ {fmtMoney(subtotal)}
+                </span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">VAT (12%)</span>
-                <span className="font-semibold text-gray-800">₱ {fmtMoney(vat)}</span>
+                <span className="font-semibold text-gray-800">
+                  ₱ {fmtMoney(vat)}
+                </span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Withholding</span>
-                <span className="font-semibold text-gray-800">₱ {fmtMoney(withholding)}</span>
+                <span className="font-semibold text-gray-800">
+                  ₱ {fmtMoney(withholding)}
+                </span>
               </div>
 
-              <div className="flex justify-between border-t pt-2">
+              <div className="flex justify-between border-t pt-2 gap-3">
                 <span className="text-gray-700 font-semibold">Total</span>
-                <span className="font-bold text-gray-900">₱ {fmtMoney(total)}</span>
+                <span className="font-bold text-gray-900">
+                  ₱ {fmtMoney(total)}
+                </span>
               </div>
             </div>
 
@@ -500,7 +514,9 @@ export default function BillingGeneratePage() {
                 onClick={handleConfirmGenerate}
                 disabled={savingInvoice}
                 className={`px-4 py-2 rounded-lg text-white font-medium ${
-                  savingInvoice ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
+                  savingInvoice
+                    ? "bg-gray-400"
+                    : "bg-indigo-600 hover:bg-indigo-700"
                 }`}
               >
                 {savingInvoice ? "Generating..." : "Confirm & Generate"}
@@ -517,7 +533,7 @@ export default function BillingGeneratePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMsgOpen(false)}
           />
-          <div className="relative w-full max-w-md bg-white rounded-xl shadow-lg border p-6">
+          <div className="relative w-full max-w-md bg-white rounded-xl shadow-lg border p-6 mx-4">
             <h3 className="text-lg font-semibold text-gray-800">{msgTitle}</h3>
             <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">
               {msgBody}
@@ -547,10 +563,10 @@ export default function BillingGeneratePage() {
       </header>
 
       {/* CLIENT INFO */}
-      <section className="bg-white p-6 rounded-xl shadow border">
-        <h2 className="text-lg font-semibold mb-4">Client Information</h2>
+      <section className="bg-white p-4 md:p-6 rounded-xl shadow border">
+        <h2 className="text-lg font-semibold mb-3 md:mb-4">Client Information</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* CLIENT SELECT */}
           <div>
             <label className="text-sm font-medium">Client</label>
@@ -574,7 +590,9 @@ export default function BillingGeneratePage() {
             {/* ACTIVE RATE DISPLAY */}
             <div className="mt-3 text-sm text-gray-600">
               {loadingRate && selectedClientId && (
-                <span className="italic text-gray-400">Loading active rate…</span>
+                <span className="italic text-gray-400">
+                  Loading active rate…
+                </span>
               )}
 
               {!loadingRate && selectedClientId && activeRate && (
@@ -612,13 +630,13 @@ export default function BillingGeneratePage() {
       </section>
 
       {/* BILLABLE TRIPS TABLE */}
-      <section className="bg-white p-6 rounded-xl shadow border">
-        <h2 className="text-lg font-semibold mb-4">Select Hauling Trips</h2>
+      <section className="bg-white p-4 md:p-6 rounded-xl shadow border">
+        <h2 className="text-lg font-semibold mb-3 md:mb-4">Select Hauling Trips</h2>
 
-        {/* FILTER / SORT CONTROLS */}
-        <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between mb-1">
-          <div className="flex flex-col md:flex-row gap-3">
-            <div>
+        {/* FILTER / SORT CONTROLS (mobile-friendly) */}
+        <div className="flex flex-col gap-3 mb-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="md:col-span-2">
               <label className="text-sm font-medium">Search (WM No.)</label>
               <input
                 value={tripSearch}
@@ -658,29 +676,33 @@ export default function BillingGeneratePage() {
             </div>
           </div>
 
-          <div className="flex gap-2 items-end">
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value as "pickUpDate" | "receiptNumber" | "weightHauled");
-                setTripPage(1);
-              }}
-              className="border rounded-lg px-3 py-2"
-            >
-              <option value="pickUpDate">Sort: Date</option>
-              <option value="receiptNumber">Sort: WM No.</option>
-              <option value="weightHauled">Sort: Weight</option>
-            </select>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex gap-2 items-center">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(
+                    e.target.value as "pickUpDate" | "receiptNumber" | "weightHauled"
+                  );
+                  setTripPage(1);
+                }}
+                className="border rounded-lg px-3 py-2 w-full sm:w-auto"
+              >
+                <option value="pickUpDate">Sort: Date</option>
+                <option value="receiptNumber">Sort: WM No.</option>
+                <option value="weightHauled">Sort: Weight</option>
+              </select>
 
-            <button
-              type="button"
-              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-              className="border rounded-lg px-3 py-2"
-            >
-              {sortDir === "desc" ? "↓" : "↑"}
-            </button>
+              <button
+                type="button"
+                onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+                className="border rounded-lg px-3 py-2 shrink-0"
+              >
+                {sortDir === "desc" ? "↓" : "↑"}
+              </button>
+            </div>
 
-            <div className="text-xs text-gray-500 pb-2">
+            <div className="text-xs text-gray-500">
               {loadingTrips ? "Loading…" : ""}
             </div>
           </div>
@@ -717,9 +739,9 @@ export default function BillingGeneratePage() {
           </button>
         </div>
 
-        {/* Sticky mini-summary */}
+        {/* Desktop sticky mini-summary */}
         {selectedTripIds.size > 0 && (
-          <div className="sticky top-2 z-10 bg-white border rounded-lg px-4 py-3 shadow-sm mb-3">
+          <div className="hidden md:block sticky top-2 z-10 bg-white border rounded-lg px-4 py-3 shadow-sm mb-3">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm">
               <div className="text-gray-700">
                 <span className="font-semibold">{selectedTripIds.size}</span> trip(s) selected •{" "}
@@ -740,74 +762,150 @@ export default function BillingGeneratePage() {
           </div>
         )}
 
+        {/* Mobile bottom bar summary */}
+        {selectedTripIds.size > 0 && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="text-gray-800">
+                <div className="font-semibold">{selectedTripIds.size} selected</div>
+                <div className="text-xs text-gray-600">
+                  {selectedTotalWeight.toLocaleString()} kg
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-xs text-gray-600">Subtotal</div>
+                <div className="font-semibold">₱ {fmtMoney(subtotal)}</div>
+              </div>
+
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="text-xs px-3 py-2 border rounded hover:bg-gray-50"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         {loadingTrips ? (
           <div className="text-gray-500 italic">Loading trips...</div>
         ) : billableTrips.length === 0 ? (
           <div className="text-gray-400 italic">No billable trips available.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border px-2 py-2 text-center w-12">
-                    <input
-                      type="checkbox"
-                      checked={allOnPageSelected}
-                      onChange={toggleSelectAllOnPage}
-                      disabled={loadingTrips || billableTrips.length === 0}
-                      aria-label="Select all on this page"
-                    />
-                  </th>
-                  <th className="border px-2 py-2">Pick-up Date</th>
-                  <th className="border px-2 py-2">WM No.</th>
-                  <th className="border px-2 py-2 text-right">Weight (kg)</th>
-                  <th className="border px-2 py-2">Waste Type</th>
-                </tr>
-              </thead>
+          <>
+            {/* MOBILE: Cards */}
+            <div className="md:hidden space-y-2">
+              {billableTrips.map((trip) => {
+                const isSelected = selectedTripIds.has(trip.id);
+                return (
+                  <div
+                    key={trip.id}
+                    className={`border rounded-lg p-3 ${
+                      isSelected ? "border-indigo-400 bg-indigo-50" : "bg-white"
+                    }`}
+                    onClick={() => toggleTripId(trip.id)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">
+                          {trip.receiptNumber || "WM No. –"}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          Date: {trip.pickUpDate?.substring(0, 10) ?? "–"}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          Waste: {trip.wasteType || "–"}
+                        </div>
+                      </div>
 
-              <tbody>
-                {billableTrips.map((trip) => {
-                  const isSelected = selectedTripIds.has(trip.id);
-                  return (
-                    <tr
-                      key={trip.id}
-                      className={`border-t hover:bg-gray-50 ${
-                        isSelected ? "bg-indigo-50" : ""
-                      }`}
-                    >
-                      <td className="text-center border">
+                      <div className="flex flex-col items-end gap-2">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleTripId(trip.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-5 w-5"
+                          aria-label={`Select trip ${trip.id}`}
                         />
-                      </td>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {(trip.weightHauled ?? 0).toLocaleString()} kg
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-                      <td className="px-2 py-2">
-                        {trip.pickUpDate?.substring(0, 10) ?? "–"}
-                      </td>
-                      <td className="px-2 py-2">{trip.receiptNumber || "–"}</td>
-                      <td className="px-2 py-2 text-right">
-                        {(trip.weightHauled ?? 0).toLocaleString()}
-                      </td>
-                      <td className="px-2 py-2">{trip.wasteType || "–"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* DESKTOP: Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm border">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-2 py-2 text-center w-12">
+                      <input
+                        type="checkbox"
+                        checked={allOnPageSelected}
+                        onChange={toggleSelectAllOnPage}
+                        disabled={loadingTrips || billableTrips.length === 0}
+                        aria-label="Select all on this page"
+                      />
+                    </th>
+                    <th className="border px-2 py-2">Pick-up Date</th>
+                    <th className="border px-2 py-2">WM No.</th>
+                    <th className="border px-2 py-2 text-right">Weight (kg)</th>
+                    <th className="border px-2 py-2">Waste Type</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {billableTrips.map((trip) => {
+                    const isSelected = selectedTripIds.has(trip.id);
+                    return (
+                      <tr
+                        key={trip.id}
+                        className={`border-t hover:bg-gray-50 ${
+                          isSelected ? "bg-indigo-50" : ""
+                        }`}
+                      >
+                        <td className="text-center border">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleTripId(trip.id)}
+                          />
+                        </td>
+
+                        <td className="px-2 py-2">
+                          {trip.pickUpDate?.substring(0, 10) ?? "–"}
+                        </td>
+                        <td className="px-2 py-2">{trip.receiptNumber || "–"}</td>
+                        <td className="px-2 py-2 text-right">
+                          {(trip.weightHauled ?? 0).toLocaleString()}
+                        </td>
+                        <td className="px-2 py-2">{trip.wasteType || "–"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {/* PAGINATION */}
-            <div className="flex items-center justify-between mt-3 text-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mt-3 text-sm gap-2">
               <div className="text-gray-600">
-                Showing page {tripPage} of {Math.max(1, Math.ceil(tripTotal / PAGE_SIZE))} • Total{" "}
+                Showing page {tripPage} of {totalPages} • Total{" "}
                 {tripTotal.toLocaleString()} trips
               </div>
 
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="border rounded px-3 py-1 disabled:opacity-50"
+                  className="border rounded px-3 py-2 md:py-1 disabled:opacity-50"
                   disabled={tripPage <= 1}
                   onClick={() => setTripPage((p) => Math.max(1, p - 1))}
                 >
@@ -816,28 +914,29 @@ export default function BillingGeneratePage() {
 
                 <button
                   type="button"
-                  className="border rounded px-3 py-1 disabled:opacity-50"
-                  disabled={tripPage >= Math.max(1, Math.ceil(tripTotal / PAGE_SIZE))}
-                  onClick={() =>
-                    setTripPage((p) => Math.min(Math.max(1, Math.ceil(tripTotal / PAGE_SIZE)), p + 1))
-                  }
+                  className="border rounded px-3 py-2 md:py-1 disabled:opacity-50"
+                  disabled={tripPage >= totalPages}
+                  onClick={() => setTripPage((p) => Math.min(totalPages, p + 1))}
                 >
                   Next
                 </button>
               </div>
             </div>
-          </div>
+          </>
         )}
       </section>
 
       {/* INVOICE PREVIEW */}
-      <section className="bg-white p-6 rounded-xl shadow border">
-        <h2 className="text-lg font-semibold mb-4">Invoice Preview</h2>
+      <section className="bg-white p-4 md:p-6 rounded-xl shadow border">
+        <h2 className="text-lg font-semibold mb-3 md:mb-4">Invoice Preview</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-4">
           <div>
             <label className="text-sm font-medium">Invoice Date</label>
-            <input type="date" className="w-full mt-1 border rounded-lg px-3 py-2" />
+            <input
+              type="date"
+              className="w-full mt-1 border rounded-lg px-3 py-2"
+            />
           </div>
 
           <div>
@@ -854,7 +953,9 @@ export default function BillingGeneratePage() {
                 invoiceError ? "border-red-500" : ""
               }`}
             />
-            {invoiceError && <p className="text-red-500 text-xs mt-1">{invoiceError}</p>}
+            {invoiceError && (
+              <p className="text-red-500 text-xs mt-1">{invoiceError}</p>
+            )}
           </div>
 
           <div>
@@ -868,7 +969,79 @@ export default function BillingGeneratePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* MOBILE: Preview cards */}
+        <div className="md:hidden space-y-2">
+          {selectedTripsForPreview.map(({ id, trip }) => {
+            if (!trip) {
+              return (
+                <div key={id} className="border rounded-lg p-3">
+                  <div className="text-sm text-gray-700 font-medium">
+                    Trip #{id}
+                  </div>
+                  <div className="text-xs text-gray-500 italic mt-1">
+                    Details not loaded
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleTripId(id)}
+                    className="mt-2 text-xs px-3 py-2 border rounded hover:bg-gray-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            }
+
+            const amount = (trip.weightHauled ?? 0) * ratePerKg;
+
+            return (
+              <div key={trip.id} className="border rounded-lg p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">
+                      {trip.receiptNumber || "WM No. –"}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {trip.pickUpDate?.substring(0, 10) ?? "–"}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleTripId(trip.id)}
+                    className="text-xs px-3 py-2 border rounded hover:bg-gray-50 shrink-0"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-gray-600">Weight</div>
+                  <div className="text-right font-medium">
+                    {(trip.weightHauled ?? 0).toLocaleString()} kg
+                  </div>
+
+                  <div className="text-gray-600">Rate</div>
+                  <div className="text-right font-medium">
+                    ₱ {fmtMoney(ratePerKg)}
+                  </div>
+
+                  <div className="text-gray-700 font-semibold">Amount</div>
+                  <div className="text-right font-semibold">₱ {fmtMoney(amount)}</div>
+                </div>
+              </div>
+            );
+          })}
+
+          {selectedTripIds.size === 0 && (
+            <div className="border rounded-lg p-4 text-center text-gray-400 italic">
+              Select trips to preview invoice lines.
+            </div>
+          )}
+        </div>
+
+        {/* DESKTOP: Preview table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm border">
             <thead className="bg-gray-100">
               <tr>
@@ -905,11 +1078,15 @@ export default function BillingGeneratePage() {
 
                 return (
                   <tr key={trip.id} className="border-t">
-                    <td className="px-2 py-2">{trip.pickUpDate?.substring(0, 10) ?? "–"}</td>
+                    <td className="px-2 py-2">
+                      {trip.pickUpDate?.substring(0, 10) ?? "–"}
+                    </td>
                     <td className="px-2 py-2 text-right">
                       {(trip.weightHauled ?? 0).toLocaleString()}
                     </td>
-                    <td className="px-2 py-2 text-right">₱ {fmtMoney(ratePerKg)}</td>
+                    <td className="px-2 py-2 text-right">
+                      ₱ {fmtMoney(ratePerKg)}
+                    </td>
                     <td className="px-2 py-2 text-right">₱ {fmtMoney(amount)}</td>
                     <td className="px-2 py-2 text-center">
                       <button
@@ -926,7 +1103,10 @@ export default function BillingGeneratePage() {
 
               {selectedTripIds.size === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-2 py-4 text-center text-gray-400 italic">
+                  <td
+                    colSpan={5}
+                    className="px-2 py-4 text-center text-gray-400 italic"
+                  >
                     Select trips to preview invoice lines.
                   </td>
                 </tr>
@@ -937,8 +1117,8 @@ export default function BillingGeneratePage() {
       </section>
 
       {/* SUMMARY */}
-      <section className="bg-white p-6 rounded-xl shadow border w-full md:w-1/2 ml-auto">
-        <h2 className="text-lg font-semibold mb-4">Summary</h2>
+      <section className="bg-white p-4 md:p-6 rounded-xl shadow border w-full md:w-1/2 md:ml-auto">
+        <h2 className="text-lg font-semibold mb-3 md:mb-4">Summary</h2>
 
         <div className="flex justify-between py-1">
           <span>Subtotal</span>
@@ -968,13 +1148,13 @@ export default function BillingGeneratePage() {
       </section>
 
       {/* GENERATE BUTTON + inline error */}
-      <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-col md:items-end gap-2">
         {invoiceError && <div className="text-red-600 text-sm">{invoiceError}</div>}
 
         <button
           onClick={handleOpenConfirm}
           disabled={!canGenerate}
-          className={`px-6 py-3 rounded-lg shadow font-medium text-white 
+          className={`w-full md:w-auto px-6 py-3 rounded-lg shadow font-medium text-white 
             ${
               canGenerate
                 ? "bg-indigo-600 hover:bg-indigo-700"
