@@ -24,14 +24,14 @@ L.Icon.Default.mergeOptions({
 
 interface LeafletMapProps {
   onSelect: (coords: string) => void; // REQUIRED
-  latLong?: string;                   // OPTIONAL
+  latLong?: string; // OPTIONAL
 }
 
 function ChangeView({ coords }: { coords: [number, number] }) {
   const map = useMap();
   useEffect(() => {
     map.setView(coords, 17, { animate: true });
-  }, [coords]);
+  }, [coords, map]);
   return null;
 }
 
@@ -67,21 +67,21 @@ export default function LeafletMap({ onSelect, latLong }: LeafletMapProps) {
   }, [latLong]);
 
   return (
-    <MapContainer
-      center={markerPos || [10.3157, 123.8854]} // Cebu default
-      zoom={13}
-      style={{
-        height: "300px",
-        width: "100%",
-        borderRadius: "10px",
-      }}
-    >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    // ✅ This wrapper creates a stacking context so Leaflet can't escape above your drawer
+    <div className="relative z-0 overflow-hidden rounded-xl border">
+      <MapContainer
+        center={markerPos || [10.3157, 123.8854]} // Cebu default
+        zoom={13}
+        // ✅ Use className instead of inline radius; also forces z-index low
+        className="relative z-0 w-full h-[260px] sm:h-[300px]"
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      {markerPos && <Marker position={markerPos} />}
-      {markerPos && <ChangeView coords={markerPos} />}
+        {markerPos && <Marker position={markerPos} />}
+        {markerPos && <ChangeView coords={markerPos} />}
 
-      <LocationPicker onSelect={onSelect} setMarkerPos={setMarkerPos} />
-    </MapContainer>
+        <LocationPicker onSelect={onSelect} setMarkerPos={setMarkerPos} />
+      </MapContainer>
+    </div>
   );
 }

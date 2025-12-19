@@ -146,5 +146,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0);
 }
 
+/* Prevent Leaflet from overlaying mobile drawer/sidebars */
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 0 !important;
+}
 
 

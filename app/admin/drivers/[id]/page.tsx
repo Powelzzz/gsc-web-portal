@@ -54,18 +54,18 @@ export default function DriverDetailsPage() {
     );
   };
 
-    // Save Update
-    const handleSave = async () => {
+  // Save Update
+  const handleSave = async () => {
     setSuccessMsg("");
     setErrorMsg("");
 
     if (!hasChanges()) {
-      toast.error("No changes detected.");   // ❌ ERROR TOAST
+      toast.error("No changes detected.");
       return;
     }
 
     if (contactNumber.length !== 13) {
-      toast.error("Contact number must be in +63XXXXXXXXXX format."); // ❌ ERROR TOAST
+      toast.error("Contact number must be in +63XXXXXXXXXX format.");
       return;
     }
 
@@ -79,14 +79,13 @@ export default function DriverDetailsPage() {
         contactNumber,
       });
 
-      toast.success("Driver information successfully updated!"); // ✅ SUCCESS TOAST
+      toast.success("Driver information successfully updated!");
 
       setTimeout(() => {
         router.push("/admin/drivers");
       }, 1200);
-
     } catch {
-      toast.error("Failed to update driver."); // ❌ ERROR TOAST
+      toast.error("Failed to update driver.");
     }
 
     setSaving(false);
@@ -111,99 +110,93 @@ export default function DriverDetailsPage() {
 
   if (loading) {
     return (
-      <div className="text-center py-10 text-gray-500 font-medium">
-        Loading driver information...
+      <div className="px-3 sm:px-4 md:px-0 py-6">
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border p-5 sm:p-6 text-center text-gray-500 font-medium">
+          Loading driver information...
+        </div>
       </div>
     );
   }
 
   if (!driver) {
     return (
-      <div className="text-center py-10 text-red-500 font-medium">
-        Driver not found.
+      <div className="px-3 sm:px-4 md:px-0 py-6">
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border p-5 sm:p-6 text-center text-red-500 font-medium">
+          Driver not found.
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
+    <div className="px-3 sm:px-4 md:px-0 py-3 sm:py-4">
+      <div className="max-w-2xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow border">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
+          Manage Driver
+        </h1>
 
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">
-        Manage Driver
-      </h1>
+        <p className="text-gray-500 text-sm mb-4 sm:mb-6">
+          Update driver information or delete the account.
+        </p>
 
-      <p className="text-gray-500 text-sm mb-6">
-        Update driver information or delete the account.
-      </p>
+        {/* SUCCESS MESSAGES */}
+        {successMsg && (
+          <div className="p-3 mb-4 text-sm bg-green-100 text-green-700 border border-green-300 rounded-xl">
+            {successMsg}
+          </div>
+        )}
 
-      {/* SUCCESS MESSAGES */}
-      {successMsg && (
-        <div className="p-3 mb-4 text-sm bg-green-100 text-green-700 border border-green-300 rounded">
-          {successMsg}
+        {deleteMsg && (
+          <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded-xl">
+            {deleteMsg}
+          </div>
+        )}
+
+        {/* ERROR */}
+        {errorMsg && (
+          <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded-xl">
+            {errorMsg}
+          </div>
+        )}
+
+        {/* FORM */}
+        <div className="space-y-5 sm:space-y-6">
+          {/* 2-col on sm+ (mobile stays stacked) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="First Name" value={firstName} onChange={setFirstName} />
+            <FormGroup label="Last Name" value={lastName} onChange={setLastName} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="Email" value={email} onChange={setEmail} />
+            <ContactNumberGroup
+              label="Contact Number"
+              value={contactNumber}
+              onChange={setContactNumber}
+            />
+          </div>
         </div>
-      )}
 
-      {deleteMsg && (
-        <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded">
-          {deleteMsg}
+        {/* ACTION BUTTONS */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 mt-6 sm:mt-10">
+          <button
+            onClick={deleteDriver}
+            className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white rounded-xl shadow hover:bg-red-700 active:scale-[0.99] transition"
+          >
+            Delete Driver
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="
+              w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl shadow
+              hover:bg-indigo-700 active:scale-[0.99] transition disabled:opacity-50
+            "
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
         </div>
-      )}
-
-      {/* ERROR */}
-      {errorMsg && (
-        <div className="p-3 mb-4 text-sm bg-red-100 text-red-700 border border-red-300 rounded">
-          {errorMsg}
-        </div>
-      )}
-
-      {/* FORM */}
-      <div className="space-y-6">
-        <FormGroup
-          label="First Name"
-          value={firstName}
-          onChange={setFirstName}
-        />
-
-        <FormGroup
-          label="Last Name"
-          value={lastName}
-          onChange={setLastName}
-        />
-
-        <FormGroup
-          label="Email"
-          value={email}
-          onChange={setEmail}
-        />
-
-        <ContactNumberGroup
-          label="Contact Number"
-          value={contactNumber}
-          onChange={setContactNumber}
-        />
-      </div>
-
-      {/* ACTION BUTTONS */}
-      <div className="flex justify-between mt-10">
-
-        <button
-          onClick={deleteDriver}
-          className="px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700"
-        >
-          Delete Driver
-        </button>
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="
-            px-6 py-3 bg-indigo-600 text-white rounded-lg shadow 
-            hover:bg-indigo-700 disabled:opacity-50
-          "
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-
       </div>
     </div>
   );
@@ -231,13 +224,13 @@ function ContactNumberGroup({ label, value, onChange }: any) {
   };
 
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
       </label>
 
       <div className="flex">
-        <span className="px-4 flex items-center rounded-l-lg border border-gray-300 bg-gray-100 text-gray-700 font-semibold">
+        <span className="px-4 flex items-center rounded-l-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold text-sm">
           +63
         </span>
 
@@ -245,10 +238,11 @@ function ContactNumberGroup({ label, value, onChange }: any) {
           type="tel"
           value={value.replace("+63", "")}
           onChange={(e) => handleChange(e.target.value)}
+          inputMode="numeric"
           className="
-            w-full border border-gray-300 rounded-r-lg p-3
+            w-full border border-gray-300 rounded-r-xl p-3
             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-            shadow-sm transition text-gray-700
+            shadow-sm transition text-gray-700 text-sm
           "
           placeholder="9123456789"
         />
@@ -270,7 +264,7 @@ function ContactNumberGroup({ label, value, onChange }: any) {
 
 function FormGroup({ label, value, onChange }: any) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
       </label>
@@ -280,9 +274,9 @@ function FormGroup({ label, value, onChange }: any) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="
-          w-full border border-gray-300 rounded-lg p-3
+          w-full border border-gray-300 rounded-xl p-3
           focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-          shadow-sm transition text-gray-700
+          shadow-sm transition text-gray-700 text-sm
         "
       />
     </div>

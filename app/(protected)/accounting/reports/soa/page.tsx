@@ -452,12 +452,12 @@ export default function StatementOfAccountsPage() {
     clientQuery.trim().length < 2 ? "Recent clients" : "Search results";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10">
+    <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 p-4 sm:p-0">
       {/* TOAST */}
       {toast && (
-        <div className="fixed top-5 right-5 z-[100]">
+        <div className="fixed top-5 right-5 z-[100] max-w-[calc(100vw-2.5rem)]">
           <div
-            className={`rounded-xl px-4 py-3 shadow-lg border text-sm ${
+            className={`rounded-xl px-4 py-3 shadow-lg border text-sm break-words ${
               toast.type === "success"
                 ? "bg-green-50 border-green-200 text-green-700"
                 : toast.type === "error"
@@ -471,45 +471,45 @@ export default function StatementOfAccountsPage() {
       )}
 
       {/* HEADER */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
             Statement of Accounts (SOA)
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 break-words">
             Generate and review client statements, including balances, payments, and outstanding invoices.
           </p>
         </div>
 
         {/* subtle status */}
         {refreshing && (
-          <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 w-fit">
             Refreshing…
           </span>
         )}
       </div>
 
       {/* FILTERS */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-        <div className="flex items-center justify-between gap-3">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-800">Search Client</h2>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <button
               onClick={printSoa}
               disabled={!soa}
-              className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-60"
+              className="flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-60 w-full sm:w-auto"
               title="Print (add print stylesheet for best result)"
             >
               <Printer size={16} />
               Print
             </button>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <select
                 value={quickRange}
                 onChange={(e) => setQuickRange(e.target.value as any)}
-                className="input pr-10"
+                className="input pr-10 w-full"
                 title="Quick range"
               >
                 <option value="">Quick range</option>
@@ -517,14 +517,17 @@ export default function StatementOfAccountsPage() {
                 <option value="last_month">Last month</option>
                 <option value="ytd">YTD</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <ChevronDown
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                size={16}
+              />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
           {/* Client autocomplete */}
-          <div className="relative md:col-span-3" ref={dropdownWrapRef}>
+          <div className="relative lg:col-span-3" ref={dropdownWrapRef}>
             <input
               placeholder="Type client code or name (min 2 chars)"
               value={clientQuery}
@@ -546,14 +549,14 @@ export default function StatementOfAccountsPage() {
 
             {/* selected pill */}
             {selectedClient && (
-              <div className="mt-2 inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full bg-gray-50 border">
-                <Check size={14} className="text-green-600" />
-                <span className="text-gray-700">
+              <div className="mt-2 inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full bg-gray-50 border max-w-full">
+                <Check size={14} className="text-green-600 shrink-0" />
+                <span className="text-gray-700 truncate">
                   {selectedClient.registeredCompanyName} ({selectedClient.codeName})
                 </span>
                 <button
                   type="button"
-                  className="text-gray-400 hover:text-gray-700"
+                  className="text-gray-400 hover:text-gray-700 shrink-0"
                   title="Clear selection"
                   onClick={() => {
                     setSelectedClient(null);
@@ -642,7 +645,7 @@ export default function StatementOfAccountsPage() {
         <button
           onClick={generateSOA}
           disabled={!canGenerate || loading}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-60 w-full sm:w-auto"
         >
           <Search size={18} />
           {loading ? "Generating..." : "Generate SOA"}
@@ -650,7 +653,7 @@ export default function StatementOfAccountsPage() {
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
         <SummaryCard
           label="Total Amount Billed"
           value={soa ? money(soa.totals.totalBilled) : "₱0.00"}
@@ -670,12 +673,12 @@ export default function StatementOfAccountsPage() {
       </div>
 
       {/* SOA TABLE */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-          <div className="flex items-center gap-3">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
             <h2 className="text-lg font-semibold text-gray-800">SOA Details</h2>
             {soa && (
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 break-words">
                 <span className="font-medium text-gray-700">
                   {soa.client.registeredCompanyName}
                 </span>{" "}
@@ -690,11 +693,11 @@ export default function StatementOfAccountsPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2">
             <button
               onClick={exportCsv}
               disabled={!soa || loading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-60"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-60 w-full sm:w-auto"
             >
               <Download size={18} />
               Export CSV
@@ -702,7 +705,7 @@ export default function StatementOfAccountsPage() {
 
             <button
               disabled
-              className="flex items-center gap-2 px-5 py-2.5 bg-yellow-600 text-white rounded-lg opacity-60 cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-yellow-600 text-white rounded-lg opacity-60 cursor-not-allowed w-full sm:w-auto"
               title="Add PDF export next (frontend jsPDF or backend PDF endpoint)."
             >
               <FileText size={18} />
@@ -711,8 +714,8 @@ export default function StatementOfAccountsPage() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="max-w-sm relative">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="w-full sm:max-w-sm relative">
             <Input
               placeholder="Search ledger (invoice no, receipt, text...)"
               value={ledgerQ}
@@ -737,89 +740,141 @@ export default function StatementOfAccountsPage() {
                 {filteredLedgerRows.length}
               </span>{" "}
               of{" "}
-              <span className="font-medium text-gray-700">{soa.ledgerRows.length}</span>{" "}
+              <span className="font-medium text-gray-700">
+                {soa.ledgerRows.length}
+              </span>{" "}
               rows
             </div>
           )}
         </div>
 
         {/* scrollable with sticky header */}
-        <div className="relative max-h-[520px] overflow-auto border rounded-lg">
-          <table className="w-full text-sm">
-            <thead className="text-gray-500 sticky top-0 bg-white z-10 border-b">
-              <tr className="text-left uppercase text-xs tracking-wide">
-                <ThSort label="Date" active={sortKey === "date"} dir={sortDir} onClick={() => toggleSort("date")} />
-                <ThSort label="Invoice/Receipt No." active={sortKey === "refNo"} dir={sortDir} onClick={() => toggleSort("refNo")} />
-                <th className="py-3 px-3">Description</th>
-                <ThSortRight label="Billed Amount" active={sortKey === "billed"} dir={sortDir} onClick={() => toggleSort("billed")} />
-                <ThSortRight label="Payment" active={sortKey === "paid"} dir={sortDir} onClick={() => toggleSort("paid")} />
-                <ThSortRight label="Running Balance" active={sortKey === "balance"} dir={sortDir} onClick={() => toggleSort("balance")} />
-              </tr>
-            </thead>
+        <div className="relative max-h-[520px] overflow-auto border rounded-lg -mx-4 sm:mx-0">
+          <div className="min-w-[920px] px-4 sm:px-0">
+            <table className="w-full text-sm">
+              <thead className="text-gray-500 sticky top-0 bg-white z-10 border-b">
+                <tr className="text-left uppercase text-xs tracking-wide">
+                  <ThSort
+                    label="Date"
+                    active={sortKey === "date"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("date")}
+                  />
+                  <ThSort
+                    label="Invoice/Receipt No."
+                    active={sortKey === "refNo"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("refNo")}
+                  />
+                  <th className="py-3 px-3">Description</th>
+                  <ThSortRight
+                    label="Billed Amount"
+                    active={sortKey === "billed"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("billed")}
+                  />
+                  <ThSortRight
+                    label="Payment"
+                    active={sortKey === "paid"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("paid")}
+                  />
+                  <ThSortRight
+                    label="Running Balance"
+                    active={sortKey === "balance"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("balance")}
+                  />
+                </tr>
+              </thead>
 
-            <tbody>
-              {!soa ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-400">
-                    No SOA data generated
-                  </td>
-                </tr>
-              ) : filteredLedgerRows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-400">
-                    {soa.ledgerRows.length === 0
-                      ? "This client has no invoices/payments for the selected criteria."
-                      : "No ledger rows match your search."}
-                  </td>
-                </tr>
-              ) : (
-                filteredLedgerRows.map((r, idx) => (
-                  <tr key={idx} className={`border-t ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"} hover:bg-blue-50/30`}>
-                    <td className="py-3 px-3 tabular-nums">{fmtDate(r.date)}</td>
-                    <td className="py-3 px-3 tabular-nums">{r.refNo || "-"}</td>
-                    <td className="py-3 px-3">
-                      <div className="font-medium text-gray-800">{r.description}</div>
-                      <div className="text-xs text-gray-500">{r.type}</div>
-                    </td>
-                    <td className="py-3 px-3 text-right tabular-nums">
-                      {r.billedAmount ? money(r.billedAmount) : "-"}
-                    </td>
-                    <td className="py-3 px-3 text-right tabular-nums">
-                      {r.paymentAmount ? money(r.paymentAmount) : "-"}
-                    </td>
-                    <td className="py-3 px-3 text-right font-semibold tabular-nums">
-                      {money(r.runningBalance)}
+              <tbody>
+                {!soa ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-10 text-gray-400">
+                      No SOA data generated
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : filteredLedgerRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-10 text-gray-400">
+                      {soa.ledgerRows.length === 0
+                        ? "This client has no invoices/payments for the selected criteria."
+                        : "No ledger rows match your search."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLedgerRows.map((r, idx) => (
+                    <tr
+                      key={idx}
+                      className={`border-t ${
+                        idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                      } hover:bg-blue-50/30`}
+                    >
+                      <td className="py-3 px-3 tabular-nums whitespace-nowrap">
+                        {fmtDate(r.date)}
+                      </td>
+                      <td className="py-3 px-3 tabular-nums whitespace-nowrap">
+                        {r.refNo || "-"}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-medium text-gray-800">
+                          {r.description}
+                        </div>
+                        <div className="text-xs text-gray-500">{r.type}</div>
+                      </td>
+                      <td className="py-3 px-3 text-right tabular-nums whitespace-nowrap">
+                        {r.billedAmount ? money(r.billedAmount) : "-"}
+                      </td>
+                      <td className="py-3 px-3 text-right tabular-nums whitespace-nowrap">
+                        {r.paymentAmount ? money(r.paymentAmount) : "-"}
+                      </td>
+                      <td className="py-3 px-3 text-right font-semibold tabular-nums whitespace-nowrap">
+                        {money(r.runningBalance)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* OUTSTANDING INVOICES */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-800">Outstanding Invoices</h2>
 
           <div className="flex flex-wrap gap-2">
-            <Chip active={outstandingFilter === "all"} onClick={() => setOutstandingFilter("all")}>
+            <Chip
+              active={outstandingFilter === "all"}
+              onClick={() => setOutstandingFilter("all")}
+            >
               All
             </Chip>
-            <Chip active={outstandingFilter === "current"} onClick={() => setOutstandingFilter("current")}>
+            <Chip
+              active={outstandingFilter === "current"}
+              onClick={() => setOutstandingFilter("current")}
+            >
               Current
             </Chip>
-            <Chip active={outstandingFilter === "past_due"} onClick={() => setOutstandingFilter("past_due")}>
+            <Chip
+              active={outstandingFilter === "past_due"}
+              onClick={() => setOutstandingFilter("past_due")}
+            >
               Past due
             </Chip>
-            <Chip active={outstandingFilter === "over_90"} onClick={() => setOutstandingFilter("over_90")}>
+            <Chip
+              active={outstandingFilter === "over_90"}
+              onClick={() => setOutstandingFilter("over_90")}
+            >
               Over 90
             </Chip>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <BreakdownCard
             label="Current (0–30 days)"
             value={soa ? money(soa.aging.current0To30) : "₱0.00"}
@@ -840,80 +895,96 @@ export default function StatementOfAccountsPage() {
         </div>
 
         {soa && (soa.outstandingInvoices?.length ?? 0) > 0 && (
-          <div className="overflow-x-auto pt-2 border rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="text-gray-500 bg-white sticky top-0">
-                <tr className="text-left uppercase text-xs tracking-wide border-b">
-                  <th className="py-3 px-3">Invoice No.</th>
-                  <th className="py-3 px-3">Generate Date</th>
-                  <th className="py-3 px-3">Due Date</th>
-                  <th className="py-3 px-3">Days Past Due</th>
-                  <th className="py-3 px-3 text-right">Remaining</th>
-                  <th className="py-3 px-3">Proof</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOutstanding.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-10 text-gray-400">
-                      No invoices match the selected filter.
-                    </td>
+          <div className="overflow-x-auto pt-2 border rounded-lg -mx-4 sm:mx-0">
+            <div className="min-w-[900px] px-4 sm:px-0">
+              <table className="w-full text-sm">
+                <thead className="text-gray-500 bg-white sticky top-0">
+                  <tr className="text-left uppercase text-xs tracking-wide border-b">
+                    <th className="py-3 px-3">Invoice No.</th>
+                    <th className="py-3 px-3">Generate Date</th>
+                    <th className="py-3 px-3">Due Date</th>
+                    <th className="py-3 px-3">Days Past Due</th>
+                    <th className="py-3 px-3 text-right">Remaining</th>
+                    <th className="py-3 px-3">Proof</th>
                   </tr>
-                ) : (
-                  filteredOutstanding.map((x, i) => {
-                    const isPastDue = (x.daysPastDue || 0) > 0;
-                    const over90 = (x.daysPastDue || 0) > 90;
+                </thead>
+                <tbody>
+                  {filteredOutstanding.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-10 text-gray-400">
+                        No invoices match the selected filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOutstanding.map((x, i) => {
+                      const isPastDue = (x.daysPastDue || 0) > 0;
+                      const over90 = (x.daysPastDue || 0) > 90;
 
-                    return (
-                      <tr
-                        key={i}
-                        className={`border-t ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"} ${
-                          over90 ? "bg-red-50/40" : ""
-                        }`}
-                      >
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-2">
-                            <span className="tabular-nums">{x.invoiceNo || "-"}</span>
-                            {x.invoiceNo && (
-                              <button
-                                type="button"
-                                className="text-gray-400 hover:text-gray-700"
-                                title="Copy invoice no"
-                                onClick={() => copyText(x.invoiceNo!)}
+                      return (
+                        <tr
+                          key={i}
+                          className={`border-t ${
+                            i % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                          } ${over90 ? "bg-red-50/40" : ""}`}
+                        >
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              <span className="tabular-nums whitespace-nowrap">
+                                {x.invoiceNo || "-"}
+                              </span>
+                              {x.invoiceNo && (
+                                <button
+                                  type="button"
+                                  className="text-gray-400 hover:text-gray-700"
+                                  title="Copy invoice no"
+                                  onClick={() => copyText(x.invoiceNo!)}
+                                >
+                                  <Copy size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 tabular-nums whitespace-nowrap">
+                            {fmtDate(x.generateDate)}
+                          </td>
+                          <td className="py-3 px-3 tabular-nums whitespace-nowrap">
+                            {fmtDate(x.dueDate)}
+                          </td>
+                          <td
+                            className={`py-3 px-3 tabular-nums whitespace-nowrap ${
+                              isPastDue
+                                ? "text-red-600 font-semibold"
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {isPastDue ? x.daysPastDue : "Current"}
+                          </td>
+                          <td className="py-3 px-3 text-right font-semibold tabular-nums whitespace-nowrap">
+                            {money(x.remainingAmount)}
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            {x.sentInvoiceImagePath ? (
+                              <a
+                                className="text-blue-600 hover:underline"
+                                href={`${API_ORIGIN}/${String(
+                                  x.sentInvoiceImagePath
+                                ).replace(/^\/+/, "")}`}
+                                target="_blank"
+                                rel="noreferrer"
                               >
-                                <Copy size={14} />
-                              </button>
+                                View
+                              </a>
+                            ) : (
+                              "-"
                             )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 tabular-nums">{fmtDate(x.generateDate)}</td>
-                        <td className="py-3 px-3 tabular-nums">{fmtDate(x.dueDate)}</td>
-                        <td className={`py-3 px-3 tabular-nums ${isPastDue ? "text-red-600 font-semibold" : "text-gray-600"}`}>
-                          {isPastDue ? x.daysPastDue : "Current"}
-                        </td>
-                        <td className="py-3 px-3 text-right font-semibold tabular-nums">
-                          {money(x.remainingAmount)}
-                        </td>
-                        <td className="py-3 px-3">
-                          {x.sentInvoiceImagePath ? (
-                            <a
-                              className="text-blue-600 hover:underline"
-                              href={`${API_ORIGIN}/${String(x.sentInvoiceImagePath).replace(/^\/+/, "")}`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -933,7 +1004,7 @@ function Input({ placeholder, value, onChange, type = "text" }: any) {
       placeholder={placeholder}
       value={value}
       onChange={onChange}
-      className="input"
+      className="input w-full"
     />
   );
 }
@@ -959,7 +1030,7 @@ function ThSort({
         }`}
         title="Sort"
       >
-        {label}
+        <span className="whitespace-nowrap">{label}</span>
         <span className="text-[10px]">{active ? (dir === "asc" ? "▲" : "▼") : ""}</span>
       </button>
     </th>
@@ -977,8 +1048,10 @@ function ThSortRight(props: any) {
         }`}
         title="Sort"
       >
-        {props.label}
-        <span className="text-[10px]">{props.active ? (props.dir === "asc" ? "▲" : "▼") : ""}</span>
+        <span className="whitespace-nowrap">{props.label}</span>
+        <span className="text-[10px]">
+          {props.active ? (props.dir === "asc" ? "▲" : "▼") : ""}
+        </span>
       </button>
     </th>
   );
@@ -1022,16 +1095,16 @@ function SummaryCard({
 }) {
   return (
     <div
-      className={`rounded-xl p-6 flex flex-col text-center ${
+      className={`rounded-xl p-4 sm:p-6 flex flex-col text-center ${
         highlight ? "bg-red-50 border border-red-200" : "bg-white shadow-sm"
       }`}
     >
-      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm text-gray-500 break-words">{label}</span>
       {loading ? (
         <div className="mt-2 h-8 w-2/3 mx-auto rounded bg-gray-200 animate-pulse" />
       ) : (
         <span
-          className={`text-2xl font-bold tabular-nums ${
+          className={`text-xl sm:text-2xl font-bold tabular-nums break-words ${
             highlight ? "text-red-600" : "text-gray-800"
           }`}
         >
@@ -1054,13 +1127,13 @@ function BreakdownCard({
 }) {
   return (
     <div
-      className={`rounded-xl p-5 flex flex-col gap-1 ${
+      className={`rounded-xl p-4 sm:p-5 flex flex-col gap-1 ${
         highlight ? "bg-red-50 border border-red-200" : "bg-gray-50"
       }`}
     >
-      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm text-gray-500 break-words">{label}</span>
       <span
-        className={`text-xl font-semibold tabular-nums ${
+        className={`text-lg sm:text-xl font-semibold tabular-nums break-words ${
           highlight ? "text-red-600" : "text-gray-800"
         }`}
       >

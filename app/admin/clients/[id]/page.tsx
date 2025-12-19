@@ -110,168 +110,176 @@ export default function ClientDetailsPage() {
   };
 
   const handleSave = async () => {
-  setErrorMsg("");
-  setSuccessMsg("");
-  setSaving(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setSaving(true);
 
-  try {
-    await api.put(`/admin/client/${id}`, {
-      CodeName: codeName,
-      RegisteredCompanyName: registeredName,
-      PickUpLocation: pickUpLocation,
-      PickUpLatLong: pickUpLatLong,
-      PreferredHaulingSchedule: preferredSchedule,
-      DriverAndLoaderPerKgFee: feePerKg ? Number(feePerKg) : null,
-      ClientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
-      MinimumCharging: minimumCharging ? Number(minimumCharging) : null,
-      ServiceType: serviceType,
-      PaymentTerms: paymentTerms,
-    });
+    try {
+      await api.put(`/admin/client/${id}`, {
+        CodeName: codeName,
+        RegisteredCompanyName: registeredName,
+        PickUpLocation: pickUpLocation,
+        PickUpLatLong: pickUpLatLong,
+        PreferredHaulingSchedule: preferredSchedule,
+        DriverAndLoaderPerKgFee: feePerKg ? Number(feePerKg) : null,
+        ClientServiceRate: clientServiceRate ? Number(clientServiceRate) : null,
+        MinimumCharging: minimumCharging ? Number(minimumCharging) : null,
+        ServiceType: serviceType,
+        PaymentTerms: paymentTerms,
+      });
 
-    // 🔥 SUCCESS TOAST
-    toast.success("Client successfully updated!");
+      toast.success("Client successfully updated!");
+      setTimeout(() => router.push("/admin/clients"), 1200);
+    } catch (err) {
+      toast.error("Failed to update client.");
+    }
 
-    // Redirect after short delay
-    setTimeout(() => router.push("/admin/clients"), 1200);
-
-  } catch (err) {
-    // ❌ ERROR TOAST
-    toast.error("Failed to update client.");
-  }
-
-  setSaving(false);
-};
+    setSaving(false);
+  };
 
   if (loading) {
     return (
-      <div className="text-center py-10 text-gray-500">
-        Loading client information...
+      <div className="px-3 sm:px-4 md:px-0 py-6">
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border p-5 sm:p-6 text-center text-gray-500">
+          Loading client information...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 border">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        Edit Client
-      </h1>
+    <div className="px-3 sm:px-4 md:px-0 py-3 sm:py-4">
+      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6 md:p-8 border">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">
+          Edit Client
+        </h1>
 
-      {errorMsg && (
-        <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 border">
-          {errorMsg}
+        {errorMsg && (
+          <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 border rounded-xl">
+            {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mb-4 p-3 text-sm text-green-700 bg-green-100 border rounded-xl">
+            {successMsg}
+          </div>
+        )}
+
+        <div className="space-y-5 sm:space-y-6">
+          {/* Basic */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="Code Name" value={codeName} onChange={setCodeName} />
+            <FormGroup
+              label="Registered Company Name"
+              value={registeredName}
+              onChange={setRegisteredName}
+            />
+          </div>
+
+          {/* AUTOCOMPLETE FIELD */}
+          <div className="relative">
+            <FormGroup
+              label="Pick-up Location"
+              value={pickUpLocation}
+              onChange={handlePickupLocationChange}
+              placeholder="Search address / place..."
+            />
+
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="absolute z-50 w-full bg-white border rounded-xl shadow-lg max-h-60 overflow-y-auto mt-2">
+                {suggestions.map((item: any, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => handleSuggestionClick(item)}
+                    className="p-3 hover:bg-gray-50 cursor-pointer text-sm"
+                  >
+                    {item.place_name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* MAP + COORDINATES */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Pick-up Coordinates
+            </label>
+
+            <div className="relative z-0 overflow-hidden rounded-xl border">
+              <LeafletMap onSelect={setPickUpLatLong} latLong={pickUpLatLong} />
+            </div>
+
+            <input
+              type="text"
+              value={pickUpLatLong}
+              readOnly
+              className="w-full border rounded-xl p-3 bg-gray-100 text-sm"
+            />
+          </div>
+
+          {/* Schedule + Fees */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup
+              label="Preferred Schedule"
+              value={preferredSchedule}
+              onChange={setPreferredSchedule}
+            />
+
+            <FormGroup
+              label="Fee per KG (Driver & Loader)"
+              type="number"
+              value={feePerKg}
+              onChange={setFeePerKg}
+            />
+          </div>
+
+          {/* NEW FIELDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup
+              label="Client Service Rate (₱)"
+              type="number"
+              value={clientServiceRate}
+              onChange={setClientServiceRate}
+            />
+
+            <FormGroup
+              label="Minimum Charging (₱)"
+              type="number"
+              value={minimumCharging}
+              onChange={setMinimumCharging}
+            />
+
+            <FormGroup
+              label="Service Type"
+              value={serviceType}
+              onChange={setServiceType}
+            />
+
+            <FormGroup
+              label="Payment Terms"
+              value={paymentTerms}
+              onChange={setPaymentTerms}
+            />
+          </div>
         </div>
-      )}
 
-      {successMsg && (
-        <div className="mb-4 p-3 text-sm text-green-700 bg-green-100 border">
-          {successMsg}
-        </div>
-      )}
-
-      <div className="space-y-6">
-
-        <FormGroup label="Code Name" value={codeName} onChange={setCodeName} />
-
-        <FormGroup
-          label="Registered Company Name"
-          value={registeredName}
-          onChange={setRegisteredName}
-        />
-
-        {/* AUTOCOMPLETE FIELD */}
-        <div className="relative">
-          <FormGroup
-            label="Pick-up Location"
-            value={pickUpLocation}
-            onChange={handlePickupLocationChange}
-          />
-
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute z-50 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {suggestions.map((item: any, idx) => (
-                <li
-                  key={idx}
-                  onClick={() => handleSuggestionClick(item)}
-                  className="p-3 hover:bg-gray-100 cursor-pointer text-sm"
-                >
-                  {item.place_name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* MAP + COORDINATES */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pick-up Coordinates
-          </label>
-
-          <LeafletMap onSelect={setPickUpLatLong} latLong={pickUpLatLong} />
-
-          <input
-            type="text"
-            value={pickUpLatLong}
-            readOnly
-            className="w-full mt-2 border rounded-lg p-3 bg-gray-100"
-          />
-        </div>
-
-        <FormGroup
-          label="Preferred Schedule"
-          value={preferredSchedule}
-          onChange={setPreferredSchedule}
-        />
-
-        <FormGroup
-          label="Fee per KG (Driver & Loader)"
-          type="number"
-          value={feePerKg}
-          onChange={setFeePerKg}
-        />
-
-        <FormGroup
-          label="Client Service Rate (₱)"
-          type="number"
-          value={clientServiceRate}
-          onChange={setClientServiceRate}
-        />
-
-        <FormGroup
-          label="Minimum Charging (₱)"
-          type="number"
-          value={minimumCharging}
-          onChange={setMinimumCharging}
-        />
-
-        <FormGroup
-          label="Service Type"
-          value={serviceType}
-          onChange={setServiceType}
-        />
-
-        <FormGroup
-          label="Payment Terms"
-          value={paymentTerms}
-          onChange={setPaymentTerms}
-        />
-
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full mt-6 sm:mt-8 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 active:scale-[0.99] disabled:opacity-50 transition"
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
       </div>
-
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full mt-8 bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50"
-      >
-        {saving ? "Saving..." : "Save Changes"}
-      </button>
     </div>
   );
 }
 
 function FormGroup({ label, value, onChange, type = "text", placeholder }: any) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
       </label>
@@ -280,7 +288,7 @@ function FormGroup({ label, value, onChange, type = "text", placeholder }: any) 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border rounded-lg p-3 shadow-sm"
+        className="w-full border rounded-xl p-3 shadow-sm text-sm"
       />
     </div>
   );

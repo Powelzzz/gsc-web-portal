@@ -54,30 +54,63 @@ export default function CreateAccountingStaffPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
-      <h1 className="text-3xl font-bold mb-4">Create Accounting Staff</h1>
-      <p className="text-gray-600 mb-6">
-        Password will be auto-generated as <b>accounting_{"{username}"}</b>
-      </p>
+    <div className="px-3 sm:px-4 md:px-0 py-3 sm:py-4">
+      <div className="max-w-2xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow border">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          Create Accounting Staff
+        </h1>
+        <p className="text-gray-600 text-sm mb-5 sm:mb-6">
+          Password will be auto-generated as <b>accounting_{"{username}"}</b>
+        </p>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        <FormGroup label="First Name" value={firstName} onChange={setFirstName} required />
-        <FormGroup label="Last Name" value={lastName} onChange={setLastName} required />
-        <FormGroup label="Username" value={username} onChange={setUsername} required />
-        <FormGroup label="Email (Optional)" type="email" value={email} onChange={setEmail} />
+        <form onSubmit={handleSave} className="space-y-5 sm:space-y-6">
+          {/* 2-col on sm+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup
+              label="First Name"
+              value={firstName}
+              onChange={setFirstName}
+              required
+            />
+            <FormGroup
+              label="Last Name"
+              value={lastName}
+              onChange={setLastName}
+              required
+            />
+          </div>
 
-        <ContactField value={contactDigits} onChange={setContactDigits} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup
+              label="Username"
+              value={username}
+              onChange={setUsername}
+              required
+            />
+            <FormGroup
+              label="Email (Optional)"
+              type="email"
+              value={email}
+              onChange={setEmail}
+            />
+          </div>
 
-        <RoleSelect roleId={roleId} setRoleId={setRoleId} />
+          <ContactField value={contactDigits} onChange={setContactDigits} />
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-semibold"
-        >
-          {loading ? "Saving..." : "Save Accounting Staff"}
-        </button>
-      </form>
+          <RoleSelect roleId={roleId} setRoleId={setRoleId} />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="
+              w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700
+              font-semibold shadow active:scale-[0.99] transition disabled:opacity-50
+            "
+          >
+            {loading ? "Saving..." : "Save Accounting Staff"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -90,13 +123,19 @@ function RoleSelect({
   setRoleId: Dispatch<SetStateAction<string>>;
 }) {
   return (
-    <div>
-      <label className="block font-medium mb-1">Select Role</label>
+    <div className="min-w-0">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Select Role
+      </label>
 
       <select
         value={roleId}
         onChange={(e) => setRoleId(e.target.value)}
-        className="w-full border p-3 rounded-lg"
+        className="
+          w-full border border-gray-300 p-3 rounded-xl
+          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          shadow-sm transition text-gray-700 text-sm bg-white
+        "
         required
       >
         <option value="">Choose role...</option>
@@ -110,16 +149,28 @@ function RoleSelect({
   );
 }
 
-function FormGroup({ label, value, onChange, type = "text", required = false }: any) {
+function FormGroup({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}: any) {
   return (
-    <div>
-      <label className="block font-medium mb-1">{label}</label>
+    <div className="min-w-0">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full border p-3 rounded-lg"
+        className="
+          w-full border border-gray-300 p-3 rounded-xl
+          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          shadow-sm transition text-gray-700 text-sm
+        "
       />
     </div>
   );
@@ -132,11 +183,13 @@ function ContactField({ value, onChange }: any) {
   };
 
   return (
-    <div>
-      <label className="block font-medium mb-1">Contact Number (Optional)</label>
+    <div className="min-w-0">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Contact Number (Optional)
+      </label>
 
-      <div className="flex rounded-lg overflow-hidden border border-gray-300">
-        <span className="px-4 py-3 bg-gray-100 text-gray-700 border-r border-gray-300">
+      <div className="flex rounded-xl overflow-hidden border border-gray-300 bg-white shadow-sm">
+        <span className="px-4 flex items-center bg-gray-100 text-gray-700 border-r border-gray-300 text-sm font-semibold">
           +63
         </span>
 
@@ -145,9 +198,19 @@ function ContactField({ value, onChange }: any) {
           value={value}
           onChange={handleChange}
           placeholder="9123456789"
-          className="w-full p-3 outline-none"
+          inputMode="numeric"
+          className="
+            w-full p-3 outline-none
+            focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+            text-gray-700 text-sm
+          "
         />
       </div>
+
+      {/* small helper line (UI only) */}
+      <p className="text-xs text-gray-500 mt-1">
+        Enter 10 digits (no leading 0).
+      </p>
     </div>
   );
 }

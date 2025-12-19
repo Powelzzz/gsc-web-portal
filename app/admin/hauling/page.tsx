@@ -75,9 +75,7 @@ export default function HaulingTripListPage() {
     }
 
     if (dateFilter.trim()) {
-      data = data.filter(
-        (t) => t.pickUpDate?.slice(0, 10) === dateFilter
-      );
+      data = data.filter((t) => t.pickUpDate?.slice(0, 10) === dateFilter);
     }
 
     if (statusFilter) {
@@ -89,138 +87,191 @@ export default function HaulingTripListPage() {
   }, [search, dateFilter, statusFilter, trips]);
 
   const getClientDisplay = (client: any) => {
-  if (!client) return "Unknown Client";
-  return `[${client.codeName}] ${client.registeredCompanyName}`;
-};
-
+    if (!client) return "Unknown Client";
+    return `[${client.codeName}] ${client.registeredCompanyName}`;
+  };
 
   const totalPages = Math.ceil(filteredTrips.length / perPage);
   const paginated = filteredTrips.slice((page - 1) * perPage, page * perPage);
 
   /* -------------------------------------------
-     MAIN UI
+     MAIN UI (MOBILE-FIRST)
   ------------------------------------------- */
   return (
-    <div className="max-w-5xl mx-auto bg-white p-8 rounded-xl shadow border">
-
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Hauling Trips</h1>
-
-        <Link
-          href="/admin/hauling/create"
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
-        >
-          + Create Trip
-        </Link>
-      </div>
-
-      {/* FILTERS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-
-        {/* SEARCH */}
-        <input
-          type="text"
-          placeholder="Search trips..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border p-3 rounded-lg w-full"
-        />
-
-        {/* DATE FILTER */}
-        <input
-          type="date"
-          className="border p-3 rounded-lg w-full"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-        />
-
-        {/* STATUS FILTER */}
-        <select
-          className="border p-3 rounded-lg w-full"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All Statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Scheduled">Scheduled</option>
-          <option value="Completed">Completed</option>
-          <option value="Failed">Failed</option>
-        </select>
-      </div>
-
-      {/* LOADING */}
-      {loading && (
-        <p className="text-center py-10 text-gray-500">Loading trips...</p>
-      )}
-
-      {/* EMPTY */}
-      {!loading && filteredTrips.length === 0 && (
-        <p className="text-center py-10 text-gray-400 text-lg">
-          No hauling trips found.
-        </p>
-      )}
-
-      {/* TRIP CARDS */}
-      <div className="space-y-4">
-        {paginated.map((trip: any) => (
-          <div
-            key={trip.id}
-            className="border rounded-xl p-5 bg-gray-50 hover:bg-gray-100 transition shadow-sm"
-          >
-            <h2 className="text-xl font-bold text-gray-800 mb-3">
-              Trip #{trip.id}
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Detail label="Client" value={getClientName(trip.client.id)} />
-              <Detail label="Pick-up Date" value={formatDate(trip.pickUpDate)} />
-              <Detail label="Status" value={trip.status} />
-            </div>
-
-            <Link
-              href={`/admin/hauling/${trip.id}`}
-              className="mt-4 inline-block border border-indigo-600 text-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50 text-sm"
-            >
-              View Hauling Trip Details
-            </Link>
+    <div className="px-3 sm:px-4 md:px-0 py-3 sm:py-4">
+      <div className="max-w-5xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow border">
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+              Hauling Trips
+            </h1>
+            <p className="text-gray-500 text-sm">View and manage hauling trips</p>
           </div>
-        ))}
-      </div>
 
-      {/* PAGINATION */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-8">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-            className="px-4 py-2 bg-gray-200 disabled:opacity-50 rounded-lg"
+          <Link
+            href="/admin/hauling/create"
+            className="
+              w-full sm:w-auto inline-flex items-center justify-center
+              bg-indigo-600 text-white px-5 py-3 sm:py-2.5 rounded-xl
+              text-sm font-semibold hover:bg-indigo-700 shadow
+              active:scale-[0.99] transition
+            "
           >
-            Previous
-          </button>
-
-          <p className="text-gray-700 font-medium">
-            Page {page} of {totalPages}
-          </p>
-
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
-            className="px-4 py-2 bg-gray-200 disabled:opacity-50 rounded-lg"
-          >
-            Next
-          </button>
+            + Create Trip
+          </Link>
         </div>
-      )}
+
+        {/* FILTERS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
+          {/* SEARCH */}
+          <input
+            type="text"
+            placeholder="Search trips..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="
+              w-full border border-gray-300 rounded-xl p-3 bg-gray-50
+              focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+              outline-none text-sm text-gray-700 shadow-sm transition
+            "
+          />
+
+          {/* DATE FILTER */}
+          <input
+            type="date"
+            className="
+              w-full border border-gray-300 rounded-xl p-3 bg-gray-50
+              focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+              outline-none text-sm text-gray-700 shadow-sm transition
+            "
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+          />
+
+          {/* STATUS FILTER */}
+          <select
+            className="
+              w-full border border-gray-300 rounded-xl p-3 bg-gray-50
+              focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+              outline-none text-sm text-gray-700 shadow-sm transition
+            "
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Completed">Completed</option>
+            <option value="Failed">Failed</option>
+          </select>
+        </div>
+
+        {/* LOADING */}
+        {loading && (
+          <div className="text-center py-10 text-gray-500 font-medium">
+            Loading trips...
+          </div>
+        )}
+
+        {/* EMPTY */}
+        {!loading && filteredTrips.length === 0 && (
+          <div className="text-center py-10 text-gray-400 text-lg font-medium">
+            No hauling trips found.
+          </div>
+        )}
+
+        {/* TRIP CARDS */}
+        <div className="space-y-4">
+          {paginated.map((trip: any) => (
+            <div
+              key={trip.id}
+              className="
+                border rounded-xl p-4 sm:p-5 bg-gray-50 hover:bg-gray-100
+                transition shadow-sm
+              "
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">
+                  Trip #{trip.id}
+                </h2>
+
+                <span
+                  className="
+                    text-[11px] sm:text-xs px-2.5 py-1 rounded-full
+                    bg-white border text-gray-700 font-semibold whitespace-nowrap
+                  "
+                >
+                  {trip.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Detail label="Client" value={getClientName(trip.client.id)} />
+                <Detail label="Pick-up Date" value={formatDate(trip.pickUpDate)} />
+                <Detail label="Status" value={trip.status} />
+              </div>
+
+              <Link
+                href={`/admin/hauling/${trip.id}`}
+                className="
+                  mt-4 inline-flex w-full sm:w-auto items-center justify-center
+                  border border-indigo-600 text-indigo-600 px-4 py-2.5 rounded-xl
+                  font-semibold hover:bg-indigo-50 text-sm
+                  active:scale-[0.99] transition
+                "
+              >
+                View Hauling Trip Details
+              </Link>
+            </div>
+          ))}
+        </div>
+
+        {/* PAGINATION (match your other pages) */}
+        {!loading && totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="
+                w-full sm:w-auto px-4 py-2.5 rounded-xl border text-sm font-medium
+                disabled:opacity-50 disabled:cursor-not-allowed
+                border-gray-300 text-gray-700 hover:bg-gray-50
+                active:scale-[0.99] transition
+              "
+            >
+              Previous
+            </button>
+
+            <p className="text-gray-600 text-sm text-center">
+              Page <span className="font-semibold">{page}</span> of{" "}
+              <span className="font-semibold">{totalPages}</span>
+            </p>
+
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="
+                w-full sm:w-auto px-4 py-2.5 rounded-xl border text-sm font-medium
+                disabled:opacity-50 disabled:cursor-not-allowed
+                border-gray-300 text-gray-700 hover:bg-gray-50
+                active:scale-[0.99] transition
+              "
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function Detail({ label, value }: any) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <span className="text-xs font-medium text-gray-500">{label}</span>
-      <span className="text-gray-700 font-semibold">{value}</span>
+      <span className="text-sm text-gray-700 font-semibold truncate">{value}</span>
     </div>
   );
 }

@@ -21,9 +21,7 @@ export default function EditAccountingStaffPage() {
   const [contactDigits, setContactDigits] = useState("");
   const [roleId, setRoleId] = useState("");
 
-  /* -------------------------------------------
-     LOAD EXISTING STAFF DATA (GET)
-  ------------------------------------------- */
+  /* LOAD EXISTING STAFF */
   useEffect(() => {
     const loadStaff = async () => {
       try {
@@ -41,8 +39,7 @@ export default function EditAccountingStaffPage() {
         setContactDigits(extracted);
 
         setRoleId(String(s.roleId ?? ""));
-      } catch (err) {
-        console.error(err);
+      } catch {
         toast.error("Failed to load staff details.");
       }
 
@@ -52,9 +49,7 @@ export default function EditAccountingStaffPage() {
     loadStaff();
   }, [staffId]);
 
-  /* -------------------------------------------
-     SAVE UPDATE (PUT)
-  ------------------------------------------- */
+  /* SAVE UPDATE */
   const handleSave = async (e: any) => {
     e.preventDefault();
 
@@ -77,11 +72,9 @@ export default function EditAccountingStaffPage() {
       });
 
       toast.success("Staff updated successfully!");
-
       setTimeout(() => router.push("/admin/accounting"), 1200);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update staff. Please try again.");
+    } catch {
+      toast.error("Failed to update staff.");
     }
 
     setSaving(false);
@@ -89,51 +82,82 @@ export default function EditAccountingStaffPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto p-8">
-        <p>Loading staff information...</p>
+      <div className="px-4 py-10 text-center text-gray-500">
+        Loading staff information...
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
-      <h1 className="text-3xl font-bold mb-4">Edit Accounting Staff</h1>
+    <div className="px-3 sm:px-4 md:px-0 py-3 sm:py-4">
+      <div className="max-w-2xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow border">
 
-      <form onSubmit={handleSave} className="space-y-6">
-        <FormGroup label="First Name" value={firstName} onChange={setFirstName} required />
-        <FormGroup label="Last Name" value={lastName} onChange={setLastName} required />
-        <FormGroup label="Username" value={username} onChange={setUsername} required />
-        <FormGroup label="Email (Optional)" type="email" value={email} onChange={setEmail} />
+        {/* HEADER */}
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          Edit Accounting Staff
+        </h1>
+        <p className="text-sm text-gray-500 mb-6">
+          Update staff information and assigned role
+        </p>
 
-        <ContactField value={contactDigits} onChange={setContactDigits} />
+        <form onSubmit={handleSave} className="space-y-5 sm:space-y-6">
 
-        <RoleSelect roleId={roleId} setRoleId={setRoleId} />
+          {/* NAME */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="First Name" value={firstName} onChange={setFirstName} required />
+            <FormGroup label="Last Name" value={lastName} onChange={setLastName} required />
+          </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-semibold"
-        >
-          {saving ? "Saving changes..." : "Save Changes"}
-        </button>
-      </form>
+          {/* ACCOUNT */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="Username" value={username} onChange={setUsername} required />
+            <FormGroup
+              label="Email (Optional)"
+              type="email"
+              value={email}
+              onChange={setEmail}
+            />
+          </div>
+
+          <ContactField value={contactDigits} onChange={setContactDigits} />
+          <RoleSelect roleId={roleId} setRoleId={setRoleId} />
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="
+              w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold
+              hover:bg-indigo-700 shadow transition disabled:opacity-50
+              active:scale-[0.99]
+            "
+          >
+            {saving ? "Saving changes..." : "Save Changes"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
 
 /* -------------------------------------------
-   Reusable Components
+   REUSABLE COMPONENTS (UI ONLY)
 ------------------------------------------- */
 
 function RoleSelect({ roleId, setRoleId }: any) {
   return (
     <div>
-      <label className="block font-medium mb-1">Select Role</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Select Role
+      </label>
 
       <select
         value={roleId}
         onChange={(e) => setRoleId(e.target.value)}
-        className="w-full border p-3 rounded-lg"
+        className="
+          w-full border border-gray-300 p-3 rounded-xl
+          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          text-sm shadow-sm
+        "
         required
       >
         <option value="">Choose role...</option>
@@ -149,13 +173,19 @@ function RoleSelect({ roleId, setRoleId }: any) {
 function FormGroup({ label, value, onChange, type = "text", required = false }: any) {
   return (
     <div>
-      <label className="block font-medium mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full border p-3 rounded-lg"
+        className="
+          w-full border border-gray-300 p-3 rounded-xl
+          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          text-sm shadow-sm
+        "
       />
     </div>
   );
@@ -169,10 +199,12 @@ function ContactField({ value, onChange }: any) {
 
   return (
     <div>
-      <label className="block font-medium mb-1">Contact Number (Optional)</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Contact Number (Optional)
+      </label>
 
-      <div className="flex rounded-lg overflow-hidden border border-gray-300">
-        <span className="px-4 py-3 bg-gray-100 text-gray-700 border-r border-gray-300">
+      <div className="flex rounded-xl overflow-hidden border border-gray-300 shadow-sm">
+        <span className="px-4 flex items-center bg-gray-100 text-gray-700 border-r text-sm font-semibold">
           +63
         </span>
 
@@ -181,9 +213,17 @@ function ContactField({ value, onChange }: any) {
           value={value}
           onChange={handleChange}
           placeholder="9123456789"
-          className="w-full p-3 outline-none"
+          inputMode="numeric"
+          className="
+            w-full p-3 outline-none text-sm
+            focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          "
         />
       </div>
+
+      <p className="text-xs text-gray-500 mt-1">
+        Enter 10 digits (no leading 0)
+      </p>
     </div>
   );
 }

@@ -13,7 +13,7 @@ interface InvoiceDto {
   id: number;
   invoiceNo: string;
   clientId: number;
-  clientName: string;        
+  clientName: string;
   totalAmount: number;
   totalPaid: number;
   remainingBalance: number;
@@ -32,7 +32,6 @@ type PaymentDto = {
   chequeBank: string;
   withHeldTax: string;
   receivedAmount: string;
-  // semicolon-separated list: "path1;path2;path3"
   collectionReceiptImagePath: string;
   paymentMethod: PaymentMethod;
 };
@@ -91,7 +90,6 @@ export default function EncodePaymentsPage() {
     try {
       const res = await api.get("/accounting/invoices");
 
-      // Normalize backend data into InvoiceDto
       const mapped: InvoiceDto[] = res.data.map((inv: any) => {
         const totalAmount = Number(inv.totalAmount ?? inv.netAmount ?? 0);
         const totalPaid = Number(inv.totalPaid ?? 0);
@@ -103,7 +101,7 @@ export default function EncodePaymentsPage() {
           id: inv.id,
           invoiceNo: inv.invoiceNo,
           clientId: inv.clientId,
-          clientName: inv.clientName || "", // backend already gives RegisteredCompanyName-based string
+          clientName: inv.clientName || "",
           totalAmount,
           totalPaid,
           remainingBalance,
@@ -120,16 +118,9 @@ export default function EncodePaymentsPage() {
      HELPERS
   --------------------------------------------- */
 
-  // convert arbitrary value to a finite number, fallback 0
-  const toNumber = (v: any) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
   const handleChange = (key: keyof PaymentDto, value: any) =>
     setDto((p) => ({ ...p, [key]: value }));
 
-  // helper to set amount (ensures >= 0 and 2 decimals)
   const setAmountPaid = (amount: number) => {
     handleChange("receivedAmount", Math.max(0, amount).toFixed(2));
   };
@@ -150,19 +141,17 @@ export default function EncodePaymentsPage() {
     toast.success("50% of remaining balance filled in.");
   };
 
-  // enable save only when form is valid
   const canSave =
     !!dto.invoiceId &&
     !!dto.clientId &&
     !!dto.collectionDate &&
     !!dto.collectionReceiptNo.trim() &&
     Number(dto.receivedAmount) > 0 &&
-    (!selectedInvoice || Number(dto.receivedAmount) <= Number(selectedInvoice.remainingBalance));
+    (!selectedInvoice ||
+      Number(dto.receivedAmount) <= Number(selectedInvoice.remainingBalance));
 
-  // keep a cheap flag for cheque UI
   const isCheque = dto.paymentMethod === "Cheque";
 
-  // clear cheque fields when switching away from cheque
   useEffect(() => {
     if (dto.paymentMethod !== "Cheque") {
       handleChange("chequeNo", "");
@@ -172,7 +161,6 @@ export default function EncodePaymentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dto.paymentMethod]);
 
-  // Only local state + previews; actual upload happens on SAVE
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -181,22 +169,17 @@ export default function EncodePaymentsPage() {
     const rejected: string[] = [];
 
     for (const f of files) {
-      // 1) only images
       if (!f.type.startsWith("image/")) {
         rejected.push(`${f.name} (not an image)`);
         continue;
       }
-
-      // 2) size check
       if (f.size > MAX_IMAGE_BYTES) {
         rejected.push(`${f.name} (over ${MAX_IMAGE_MB}MB)`);
         continue;
       }
-
       valid.push(f);
     }
 
-    // optional: max count
     const remainingSlots = Math.max(0, MAX_IMAGES - receiptImages.length);
     const finalFiles = MAX_IMAGES ? valid.slice(0, remainingSlots) : valid;
 
@@ -226,7 +209,6 @@ export default function EncodePaymentsPage() {
   };
 
   const selectInvoice = (inv: InvoiceDto) => {
-    // We already have full data for inv from /accounting/invoices
     handleChange("invoiceId", inv.id.toString());
     handleChange("clientId", inv.clientId.toString());
     setSearch(inv.invoiceNo);
@@ -255,7 +237,6 @@ export default function EncodePaymentsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // cleanup object URLs on unmount / when previews change
   useEffect(() => {
     return () => {
       previewUrls.forEach((u) => URL.revokeObjectURL(u));
@@ -287,7 +268,6 @@ export default function EncodePaymentsPage() {
     setLoading(true);
 
     try {
-      // 1) Upload images on SAVE (parallelized)
       let imagePathString = "";
 
       if (receiptImages.length > 0) {
@@ -307,7 +287,6 @@ export default function EncodePaymentsPage() {
         imagePathString = uploadedPaths.join(";");
       }
 
-      // 2) Save payment with imagePathString
       await api.post("/accounting/payments", {
         InvoiceId: Number(dto.invoiceId),
         ClientId: Number(dto.clientId),
@@ -324,9 +303,7 @@ export default function EncodePaymentsPage() {
 
       toast.success("Payment recorded!");
 
-      // 3) Reset everything (acts like a refresh)
       resetAll();
-      // Optional: reload invoices if you want updated totals next time
       await loadInvoices();
     } catch (err) {
       console.error(err);
@@ -341,19 +318,21 @@ export default function EncodePaymentsPage() {
   --------------------------------------------- */
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10">
-      <h1 className="text-3xl font-bold text-gray-900">Encode Received Payments</h1>
+   <div className="max-w-6xl mx-auto space-y-8 md:space-y-10 px-4 md:px-0 pb-24 md:pb-0 pt-8 md:pt-10">
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+        Encode Received Payments
+      </h1>
 
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-8">
+      <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 space-y-8">
         {/* ------- INVOICE LOOKUP ------- */}
         <h2 className="text-lg font-semibold">Invoice Lookup</h2>
 
         <div className="relative">
           <div className="flex items-center bg-gray-50 border rounded-lg px-3 py-2">
-            <Search className="text-gray-500" size={18} />
+            <Search className="text-gray-500 shrink-0" size={18} />
             <input
               type="text"
-              className="w-full bg-transparent outline-none"
+              className="w-full bg-transparent outline-none ml-2"
               placeholder="Search invoice or client"
               value={search}
               onChange={(e) => {
@@ -374,8 +353,10 @@ export default function EncodePaymentsPage() {
                     onClick={() => selectInvoice(inv)}
                     className="p-3 hover:bg-gray-100 cursor-pointer"
                   >
-                    <p className="font-medium">{inv.invoiceNo}</p>
-                    <p className="text-xs text-gray-600">{inv.clientName}</p>
+                    <p className="font-medium break-words">{inv.invoiceNo}</p>
+                    <p className="text-xs text-gray-600 break-words">
+                      {inv.clientName}
+                    </p>
                   </div>
                 ))
               )}
@@ -386,11 +367,11 @@ export default function EncodePaymentsPage() {
         {/* ------- SELECTED INVOICE SUMMARY ------- */}
         {selectedInvoice && (
           <div className="mt-4 p-4 border rounded-lg bg-gray-50 text-sm space-y-1">
-            <p>
+            <p className="break-words">
               <span className="font-medium">Invoice:</span>{" "}
               {selectedInvoice.invoiceNo}
             </p>
-            <p>
+            <p className="break-words">
               <span className="font-medium">Client:</span>{" "}
               {selectedInvoice.clientName}
             </p>
@@ -441,12 +422,12 @@ export default function EncodePaymentsPage() {
               onChange={(e) => handleChange("receivedAmount", e.target.value)}
             />
 
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={payFull}
                 disabled={!selectedInvoice || Number(selectedInvoice.remainingBalance) <= 0}
-                className="text-sm px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm px-3 py-2 sm:py-1.5 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 Pay Full
               </button>
@@ -455,7 +436,7 @@ export default function EncodePaymentsPage() {
                 type="button"
                 onClick={payHalf}
                 disabled={!selectedInvoice || Number(selectedInvoice.remainingBalance) <= 0}
-                className="text-sm px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm px-3 py-2 sm:py-1.5 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 Pay 50%
               </button>
@@ -468,13 +449,16 @@ export default function EncodePaymentsPage() {
             onChange={(e) => handleChange("referenceNo", e.target.value)}
           />
 
-          {/* Payment Method select */}
           <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+            <label className="text-sm font-medium text-gray-700 mb-1">
+              Payment Method
+            </label>
             <select
-              className="input"
+              className="select h-11"
               value={dto.paymentMethod}
-              onChange={(e) => handleChange("paymentMethod", e.target.value as PaymentMethod)}
+              onChange={(e) =>
+                handleChange("paymentMethod", e.target.value as PaymentMethod)
+              }
             >
               <option value="Cash">Cash</option>
               <option value="Cheque">Cheque</option>
@@ -509,7 +493,7 @@ export default function EncodePaymentsPage() {
         </div>
 
         {/* ------- FILE UPLOAD (MULTIPLE) ------- */}
-        <div className="p-10 bg-gray-50 rounded-xl flex flex-col items-center">
+        <div className="p-6 md:p-10 bg-gray-50 rounded-xl flex flex-col items-center text-center">
           <UploadCloud className="text-gray-500" size={40} />
           <p className="mt-3 text-gray-700 font-medium">
             Upload Proof of Payment (optional)
@@ -521,7 +505,7 @@ export default function EncodePaymentsPage() {
 
           <label
             htmlFor="receiptUpload"
-            className="mt-4 px-5 py-2.5 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700"
+            className="mt-4 w-full sm:w-auto text-center px-5 py-2.5 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700"
           >
             Choose File(s)
           </label>
@@ -543,7 +527,7 @@ export default function EncodePaymentsPage() {
                   <img
                     src={url}
                     alt={`Receipt ${index + 1}`}
-                    className="max-h-40 rounded border bg-white"
+                    className="w-full max-w-[220px] max-h-40 object-cover rounded border bg-white"
                   />
                   <button
                     type="button"
@@ -562,7 +546,7 @@ export default function EncodePaymentsPage() {
         <button
           onClick={submitPayment}
           disabled={!canSave || loading}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+          className="w-full md:w-auto px-6 py-3 md:py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
         >
           {loading ? "Saving..." : "Save Payment"}
         </button>
@@ -592,7 +576,7 @@ function Input({
     <div className="flex flex-col">
       <label className="text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
-        className="input"
+        className="input h-11"
         type={type}
         value={value}
         onChange={onChange}

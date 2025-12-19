@@ -132,6 +132,8 @@ export default function BillingGeneratePage() {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
   const [savingInvoice, setSavingInvoice] = useState(false);
+  const [invoiceDate, setInvoiceDate] = useState("");
+
 
   // ✅ modal state
   const [showConfirm, setShowConfirm] = useState(false);
@@ -948,10 +950,10 @@ export default function BillingGeneratePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-4">
           <div>
-            <label className="text-sm font-medium">Invoice Date</label>
-            <input
-              type="date"
-              className="w-full mt-1 border rounded-lg px-3 py-2"
+            <DateInput
+              label="Invoice Date"
+              value={invoiceDate}
+              onChange={setInvoiceDate}
             />
           </div>
 

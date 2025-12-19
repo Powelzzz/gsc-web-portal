@@ -211,19 +211,23 @@ export default function UnpaidBillingReports() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10">
+    <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 p-4 sm:p-0">
       {/* HEADER */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Unpaid Billing Reports</h1>
-        <p className="text-gray-500">View all outstanding invoices, aging, and unpaid balances.</p>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <div className="min-w-0">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+          Unpaid Billing Reports
+        </h1>
+        <p className="text-gray-500 break-words">
+          View all outstanding invoices, aging, and unpaid balances.
+        </p>
+        {error && <p className="mt-2 text-sm text-red-600 break-words">{error}</p>}
       </div>
 
       {/* FILTERS */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6">
         <h2 className="text-lg font-semibold text-gray-800">Search Filters</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <input
             placeholder="Client Code"
             className="input"
@@ -267,11 +271,11 @@ export default function UnpaidBillingReports() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <button
             onClick={applyFilters}
             disabled={loading}
-            className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg transition ${
+            className={`flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-lg transition w-full sm:w-auto ${
               loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
@@ -282,7 +286,7 @@ export default function UnpaidBillingReports() {
           <button
             onClick={clearFilters}
             disabled={loading}
-            className="px-5 py-2.5 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="px-5 py-2.5 border rounded-lg hover:bg-gray-50 disabled:opacity-50 w-full sm:w-auto"
           >
             Clear
           </button>
@@ -290,21 +294,21 @@ export default function UnpaidBillingReports() {
       </div>
 
       {/* SUMMARY CARDS (per-page) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
         <SummaryCard label="Total Unpaid Amount (This Page)" value={fmtMoney(totalUnpaid)} />
         <SummaryCard label="Unpaid Invoices (This Page)" value={totalInvoices} />
         <SummaryCard label="Clients (This Page)" value={totalClients} />
       </div>
 
       {/* TABLE */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-        <div className="flex justify-between items-center">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-800">Unpaid Invoices</h2>
 
           <button
             onClick={exportCsv}
             disabled={loading}
-            className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg transition ${
+            className={`flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-lg transition w-full sm:w-auto ${
               loading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"
             }`}
           >
@@ -313,79 +317,92 @@ export default function UnpaidBillingReports() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-gray-500">
-              <tr className="text-left uppercase text-xs tracking-wide">
-                <th className="pb-3">Invoice No.</th>
-                <th className="pb-3">Client</th>
-                <th className="pb-3">Billed</th>
-                <th className="pb-3">Paid</th>
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="min-w-[980px] px-4 sm:px-0">
+            <table className="w-full text-sm">
+              <thead className="text-gray-500">
+                <tr className="text-left uppercase text-xs tracking-wide">
+                  <th className="pb-3">Invoice No.</th>
+                  <th className="pb-3">Client</th>
+                  <th className="pb-3">Billed</th>
+                  <th className="pb-3">Paid</th>
 
-                {/* minimal clickable sorts */}
-                <th className="pb-3 cursor-pointer select-none" onClick={() => toggleSort("remaining")}>
-                  Remaining {sortBy === "remaining" ? (sortDir === "asc" ? "▲" : "▼") : ""}
-                </th>
+                  {/* minimal clickable sorts */}
+                  <th
+                    className="pb-3 cursor-pointer select-none whitespace-nowrap"
+                    onClick={() => toggleSort("remaining")}
+                  >
+                    Remaining {sortBy === "remaining" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                  </th>
 
-                <th className="pb-3 cursor-pointer select-none" onClick={() => toggleSort("generateDate")}>
-                  Generate Date {sortBy === "generateDate" ? (sortDir === "asc" ? "▲" : "▼") : ""}
-                </th>
+                  <th
+                    className="pb-3 cursor-pointer select-none whitespace-nowrap"
+                    onClick={() => toggleSort("generateDate")}
+                  >
+                    Generate Date {sortBy === "generateDate" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                  </th>
 
-                <th className="pb-3">Date Sent</th>
+                  <th className="pb-3 whitespace-nowrap">Date Sent</th>
 
-                <th className="pb-3 cursor-pointer select-none" onClick={() => toggleSort("agingDays")}>
-                  Aging (Days) {sortBy === "agingDays" ? (sortDir === "asc" ? "▲" : "▼") : ""}
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-10 text-gray-400">
-                    Loading...
-                  </td>
+                  <th
+                    className="pb-3 cursor-pointer select-none whitespace-nowrap"
+                    onClick={() => toggleSort("agingDays")}
+                  >
+                    Aging (Days) {sortBy === "agingDays" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                  </th>
                 </tr>
-              ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-10 text-gray-400">
-                    No unpaid billing records found
-                  </td>
-                </tr>
-              ) : (
-                data.map((row) => (
-                  <tr key={row.id} className="border-t">
-                    <td className="py-2">{row.invoiceNo}</td>
-                    <td>{row.client}</td>
-                    <td>{fmtMoney(row.billedAmount)}</td>
-                    <td>{fmtMoney(row.paidAmount)}</td>
-                    <td className="font-semibold text-red-600">{fmtMoney(row.remaining)}</td>
-                    <td>{fmtDate(row.generateDate)}</td>
-                    <td>{fmtDate(row.dateSent)}</td>
-                    <td>{row.agingDays}</td>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-10 text-gray-400">
+                      Loading...
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-10 text-gray-400">
+                      No unpaid billing records found
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="py-2 whitespace-nowrap">{row.invoiceNo}</td>
+                      <td className="break-words">{row.client}</td>
+                      <td className="whitespace-nowrap">{fmtMoney(row.billedAmount)}</td>
+                      <td className="whitespace-nowrap">{fmtMoney(row.paidAmount)}</td>
+                      <td className="font-semibold text-red-600 whitespace-nowrap">
+                        {fmtMoney(row.remaining)}
+                      </td>
+                      <td className="whitespace-nowrap">{fmtDate(row.generateDate)}</td>
+                      <td className="whitespace-nowrap">{fmtDate(row.dateSent)}</td>
+                      <td className="whitespace-nowrap">{row.agingDays}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* PAGINATION FOOTER (NEW) */}
-        <div className="flex items-center justify-between pt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4">
           <div className="text-sm text-gray-500">
             Showing {showingFrom}–{showingTo} of {total}
           </div>
 
           <div className="flex gap-2">
             <button
-              className="px-3 py-2 border rounded-lg disabled:opacity-50"
+              className="px-3 py-2 border rounded-lg disabled:opacity-50 w-full sm:w-auto"
               disabled={loading || !canPrev}
               onClick={() => setPage((p) => p - 1)}
             >
               Prev
             </button>
             <button
-              className="px-3 py-2 border rounded-lg disabled:opacity-50"
+              className="px-3 py-2 border rounded-lg disabled:opacity-50 w-full sm:w-auto"
               disabled={loading || !canNext}
               onClick={() => setPage((p) => p + 1)}
             >
@@ -396,10 +413,10 @@ export default function UnpaidBillingReports() {
       </div>
 
       {/* AGING BREAKDOWN (per-page) */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6">
         <h2 className="text-lg font-semibold text-gray-800">Aging Breakdown (This Page)</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <BreakdownCard label="0 - 30 Days" value={fmtMoney(aging0to30)} />
           <BreakdownCard label="31 - 60 Days" value={fmtMoney(aging31to60)} />
           <BreakdownCard label="61 - 90 Days" value={fmtMoney(aging61to90)} />
@@ -412,18 +429,18 @@ export default function UnpaidBillingReports() {
 
 function SummaryCard({ label, value }: { label: string; value: any }) {
   return (
-    <div className="bg-white shadow-sm rounded-xl p-6 text-center">
-      <span className="text-sm text-gray-500">{label}</span>
-      <div className="text-2xl font-bold text-gray-800">{value}</div>
+    <div className="bg-white shadow-sm rounded-xl p-4 sm:p-6 text-center">
+      <span className="text-sm text-gray-500 break-words">{label}</span>
+      <div className="text-xl sm:text-2xl font-bold text-gray-800 break-words">{value}</div>
     </div>
   );
 }
 
 function BreakdownCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-5">
-      <span className="text-sm text-gray-500">{label}</span>
-      <div className="text-xl font-semibold text-gray-800">{value}</div>
+    <div className="bg-gray-50 rounded-xl p-4 sm:p-5">
+      <span className="text-sm text-gray-500 break-words">{label}</span>
+      <div className="text-lg sm:text-xl font-semibold text-gray-800 break-words">{value}</div>
     </div>
   );
 }

@@ -582,7 +582,7 @@ export default function DriverPayrollPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 p-6">
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 p-4 sm:p-6">
       {/* TITLE */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Driver Payroll</h1>
@@ -592,7 +592,7 @@ export default function DriverPayrollPage() {
       </div>
 
       {/* SUMMARY */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6">
         <h2 className="text-lg font-semibold text-gray-800">Summary</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <SummaryCard label="Drivers Included" value={summary.totalDrivers.toString()} />
@@ -603,19 +603,19 @@ export default function DriverPayrollPage() {
       </div>
 
       {/* FILTERS + TABLE */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6">
         {/* TOP CONTROLS */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-800">
             Payroll{" "}
             {filtered.length > 0 && <span className="text-sm text-gray-500">({filtered.length} results)</span>}
           </h2>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+                className="px-4 py-2 w-full sm:w-auto text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
               >
                 Clear Filters
               </button>
@@ -623,7 +623,7 @@ export default function DriverPayrollPage() {
 
             <button
               onClick={generatePayrollBatch}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+              className="px-4 py-2 w-full sm:w-auto bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
             >
               Generate Payroll
             </button>
@@ -631,7 +631,7 @@ export default function DriverPayrollPage() {
             <button
               onClick={exportCSV}
               disabled={filtered.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 w-full sm:w-auto bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
             >
               <Download size={18} />
               Export CSV
@@ -640,7 +640,7 @@ export default function DriverPayrollPage() {
         </div>
 
         {/* FILTER FIELDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Input
             placeholder="Search Driver (name or ID)"
             value={driverSearch}
@@ -716,8 +716,10 @@ function PayrollTable({
   onGenerate: (driverId: number) => void;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+  <div className="min-w-[760px] px-4 sm:px-0">
+
+      <table className="w-full text-sm min-w-[980px]">
         <thead className="bg-gray-50 text-gray-600">
           <tr className="text-left uppercase text-xs tracking-wide">
             <th className="py-3 px-4">Driver</th>
@@ -764,7 +766,7 @@ function PayrollTable({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => onOpen(r)}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition whitespace-nowrap"
                     >
                       <Eye size={16} />
                       View
@@ -773,7 +775,7 @@ function PayrollTable({
                     <button
                       onClick={() => onGenerate(r.driverId)}
                       disabled={!canGenerate}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50 whitespace-nowrap"
                     >
                       Generate
                     </button>
@@ -785,6 +787,7 @@ function PayrollTable({
         </tbody>
       </table>
     </div>
+  </div>
   );
 }
 
@@ -916,13 +919,13 @@ function PayrollDetailsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl bg-white rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-6xl bg-white rounded-xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[90vh]">
         {/* HEADER */}
-        <div className="flex items-start justify-between px-6 py-4 border-b shrink-0">
-          <div>
+        <div className="flex items-start justify-between px-4 sm:px-6 py-4 border-b shrink-0 gap-3">
+          <div className="min-w-0">
             <h3 className="text-xl font-bold text-gray-900">Payroll Details</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 break-words">
               {row.driverName} • {row.periodStart} to {row.periodEnd}
             </p>
             {row.status !== "PREVIEW" && row.generatedAt && (
@@ -936,7 +939,7 @@ function PayrollDetailsModal({
         </div>
 
         {/* BODY */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6">
           {/* SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <MiniCard label="Runs" value={row.tripCount.toString()} />
@@ -952,7 +955,7 @@ function PayrollDetailsModal({
               <span className="text-xs text-gray-500">{clientSubtotals.length} client rate lines</span>
             </div>
 
-            <div className="max-h-[220px] overflow-y-auto">
+            <div className="max-h-[220px] overflow-y-auto overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-white sticky top-0 z-10">
                   <tr className="text-left uppercase text-xs tracking-wide text-gray-600">
@@ -1022,8 +1025,8 @@ function PayrollDetailsModal({
             {tripsLoading && <div className="p-4 text-sm text-gray-500">Loading pickups...</div>}
             {tripsError && <div className="p-4 text-sm text-red-600">{tripsError}</div>}
 
-            <div className="max-h-[360px] overflow-y-auto">
-              <table className="w-full text-sm">
+            <div className="max-h-[360px] overflow-y-auto overflow-x-auto">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead className="bg-white sticky top-0 z-10">
                   <tr className="text-left uppercase text-xs tracking-wide text-gray-600">
                     <th className="py-3 px-4">Trip ID</th>
@@ -1080,7 +1083,7 @@ function PayrollDetailsModal({
           <div className="border rounded-xl p-5 space-y-4">
             <h4 className="text-sm font-semibold text-gray-800">Payment</h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               <FieldNumber
                 label="Payment Amount"
                 value={paymentAmount}
@@ -1122,14 +1125,14 @@ function PayrollDetailsModal({
         </div>
 
         {/* FOOTER */}
-        <div className="px-6 py-4 border-t bg-white shrink-0 flex flex-wrap gap-3 justify-between items-center">
+        <div className="px-4 sm:px-6 py-4 border-t bg-white shrink-0 flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
           <StatusPill status={row.status} />
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={save}
               disabled={!canSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 w-full sm:w-auto justify-center bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
             >
               <Save size={18} />
               Save
@@ -1164,9 +1167,9 @@ function PayrollDetailsModal({
 --------------------------------------------- */
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-gray-100 border rounded-xl p-6 flex flex-col gap-2">
+    <div className="bg-gradient-to-br from-gray-50 to-gray-100 border rounded-xl p-4 sm:p-6 flex flex-col gap-2">
       <span className="text-sm text-gray-600">{label}</span>
-      <span className="text-3xl font-bold text-gray-900">{value}</span>
+      <span className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</span>
     </div>
   );
 }
@@ -1175,7 +1178,7 @@ function MiniCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white border rounded-xl p-4 flex flex-col gap-1">
       <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-lg font-bold text-gray-900">{value}</span>
+      <span className="text-base sm:text-lg font-bold text-gray-900 break-words">{value}</span>
     </div>
   );
 }
@@ -1329,7 +1332,7 @@ function FieldNumber({
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm text-gray-600 font-medium">{label}</label>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {prefix && <span className="text-sm text-gray-500">{prefix}</span>}
         <input
           type="text"
@@ -1409,7 +1412,7 @@ function FieldNumberInline({
       onChange={(e) => handleChange(e.target.value)}
       onBlur={handleBlur}
       disabled={disabled}
-      className={`w-[140px] border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 ${
+      className={`w-full sm:w-[140px] border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 ${
         disabled ? "bg-gray-100 text-gray-500" : "bg-white"
       }`}
     />
