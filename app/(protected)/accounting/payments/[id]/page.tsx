@@ -78,8 +78,7 @@ export default function PaymentDetailsPage() {
     return data.collectionReceiptImagePath
       .split(";")
       .map((x) => x.trim())
-      .filter(Boolean)
-      .map((p) => (p.startsWith("http") ? p : `${API_ORIGIN}${p}`));
+      .filter(Boolean);
   }, [data]);
 
   if (loading) {
