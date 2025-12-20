@@ -307,6 +307,26 @@ function AdminSidebarContent({
             }
             onNavigate={onNavigate}
           />
+          <SidebarItem
+            open={true}
+            href="/admin/truck/addtruck"
+            icon={<Truck size={22} />}
+            label="Add New Truck"
+            active={pathname.startsWith("/admin/truck/addtruck")}
+            onNavigate={onNavigate}
+          />
+
+          <SidebarItem
+            open={true}
+            href="/admin/truck"
+            icon={<Truck size={22} />}
+            label="List of Trucks"
+            active={
+              pathname.startsWith("/admin/truck") &&
+              !pathname.startsWith("/admin/truck/addtruck")
+            }
+            onNavigate={onNavigate}
+          />
 
           <SidebarSection open={true} title="Accounting Staff" />
           <SidebarItem
@@ -490,6 +510,27 @@ function AdminSidebarContent({
           active={
             pathname.startsWith("/admin/drivers") &&
             !pathname.startsWith("/admin/drivers/create")
+          }
+          onNavigate={onNavigate}
+        />
+
+        <SidebarItem
+          open={true}
+          href="/admin/truck/addtruck"
+          icon={<Truck size={22} />}
+          label="Add New Truck"
+          active={pathname.startsWith("/admin/truck/addtruck")}
+          onNavigate={onNavigate}
+        />
+
+        <SidebarItem
+          open={true}
+          href="/admin/truck"
+          icon={<Truck size={22} />}
+          label="List of Trucks"
+          active={
+            pathname.startsWith("/admin/truck") &&
+            !pathname.startsWith("/admin/truck/addtruck")
           }
           onNavigate={onNavigate}
         />
