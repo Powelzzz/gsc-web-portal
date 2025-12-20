@@ -4,6 +4,31 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
 
+const TZ = "Asia/Manila";
+
+function formatPickUp(d: string | null | undefined) {
+  if (!d) return { date: "—", time: "—" };
+
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return { date: "—", time: "—" };
+
+  const date = dt.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: TZ,
+  });
+
+  const time = dt.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: TZ,
+  });
+
+  return { date, time };
+}
+
 export default function HaulingTripListPage() {
   const [trips, setTrips] = useState<any[]>([]);
   const [filteredTrips, setFilteredTrips] = useState<any[]>([]);
@@ -50,19 +75,6 @@ export default function HaulingTripListPage() {
     return c ? `[${c.codeName}] ${c.registeredCompanyName}` : id;
   };
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "Asia/Manila",
-      });
-    } catch {
-      return d;
-    }
-  };
-
   /* -------------------------------------------
      FILTER TRIPS
   ------------------------------------------- */
@@ -74,6 +86,7 @@ export default function HaulingTripListPage() {
       data = data.filter((t) => JSON.stringify(t).toLowerCase().includes(s));
     }
 
+    // still filter by date portion (YYYY-MM-DD)
     if (dateFilter.trim()) {
       data = data.filter((t) => t.pickUpDate?.slice(0, 10) === dateFilter);
     }
@@ -85,11 +98,6 @@ export default function HaulingTripListPage() {
     setFilteredTrips(data);
     setPage(1);
   }, [search, dateFilter, statusFilter, trips]);
-
-  const getClientDisplay = (client: any) => {
-    if (!client) return "Unknown Client";
-    return `[${client.codeName}] ${client.registeredCompanyName}`;
-  };
 
   const totalPages = Math.ceil(filteredTrips.length / perPage);
   const paginated = filteredTrips.slice((page - 1) * perPage, page * perPage);
@@ -183,51 +191,56 @@ export default function HaulingTripListPage() {
 
         {/* TRIP CARDS */}
         <div className="space-y-4">
-          {paginated.map((trip: any) => (
-            <div
-              key={trip.id}
-              className="
-                border rounded-xl p-4 sm:p-5 bg-gray-50 hover:bg-gray-100
-                transition shadow-sm
-              "
-            >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-                  Trip #{trip.id}
-                </h2>
+          {paginated.map((trip: any) => {
+            const pu = formatPickUp(trip.pickUpDate);
 
-                <span
-                  className="
-                    text-[11px] sm:text-xs px-2.5 py-1 rounded-full
-                    bg-white border text-gray-700 font-semibold whitespace-nowrap
-                  "
-                >
-                  {trip.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Detail label="Client" value={getClientName(trip.client.id)} />
-                <Detail label="Pick-up Date" value={formatDate(trip.pickUpDate)} />
-                <Detail label="Status" value={trip.status} />
-              </div>
-
-              <Link
-                href={`/admin/hauling/${trip.id}`}
+            return (
+              <div
+                key={trip.id}
                 className="
-                  mt-4 inline-flex w-full sm:w-auto items-center justify-center
-                  border border-indigo-600 text-indigo-600 px-4 py-2.5 rounded-xl
-                  font-semibold hover:bg-indigo-50 text-sm
-                  active:scale-[0.99] transition
+                  border rounded-xl p-4 sm:p-5 bg-gray-50 hover:bg-gray-100
+                  transition shadow-sm
                 "
               >
-                View Hauling Trip Details
-              </Link>
-            </div>
-          ))}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-800">
+                    Trip #{trip.id}
+                  </h2>
+
+                  <span
+                    className="
+                      text-[11px] sm:text-xs px-2.5 py-1 rounded-full
+                      bg-white border text-gray-700 font-semibold whitespace-nowrap
+                    "
+                  >
+                    {trip.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Detail label="Client" value={getClientName(trip.client.id)} />
+                  <Detail label="Pick-up Date" value={pu.date} />
+                  <Detail label="Pick-up Time" value={pu.time} />
+                  <Detail label="Status" value={trip.status} />
+                </div>
+
+                <Link
+                  href={`/admin/hauling/${trip.id}`}
+                  className="
+                    mt-4 inline-flex w-full sm:w-auto items-center justify-center
+                    border border-indigo-600 text-indigo-600 px-4 py-2.5 rounded-xl
+                    font-semibold hover:bg-indigo-50 text-sm
+                    active:scale-[0.99] transition
+                  "
+                >
+                  View Hauling Trip Details
+                </Link>
+              </div>
+            );
+          })}
         </div>
 
-        {/* PAGINATION (match your other pages) */}
+        {/* PAGINATION */}
         {!loading && totalPages > 1 && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6">
             <button

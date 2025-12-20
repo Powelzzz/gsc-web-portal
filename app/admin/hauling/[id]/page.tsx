@@ -16,13 +16,12 @@ export default function HaulingTripDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [deleteMsg, setDeleteMsg] = useState("");
 
   // Editable fields
   const [clientId, setClientId] = useState<number | null>(null);
   const [pickUpDate, setPickUpDate] = useState("");
+  const [pickUpTime, setPickUpTime] = useState("");
 
   /* ------------------------------------
         LOAD TRIP + CLIENTS
@@ -36,7 +35,12 @@ export default function HaulingTripDetailsPage() {
       setClients(c.data);
 
       setClientId(t.data.clientId ?? null);
-      setPickUpDate(t.data.pickUpDate?.slice(0, 10));
+
+      if (t.data.pickUpDate) {
+        const d = new Date(t.data.pickUpDate);
+        setPickUpDate(d.toISOString().slice(0, 10));
+        setPickUpTime(d.toISOString().slice(11, 16)); // HH:mm
+      }
     } catch {
       setErrorMsg("Failed to load hauling trip details.");
     } finally {
@@ -54,10 +58,15 @@ export default function HaulingTripDetailsPage() {
   const hasChanges = () => {
     if (!trip) return false;
 
-    return (
-      clientId !== trip.clientId ||
-      pickUpDate !== trip.pickUpDate?.slice(0, 10)
-    );
+    const original = trip.pickUpDate
+      ? new Date(trip.pickUpDate).toISOString().slice(0, 16)
+      : "";
+
+    const current = pickUpDate && pickUpTime
+      ? `${pickUpDate}T${pickUpTime}`
+      : "";
+
+    return clientId !== trip.clientId || original !== current;
   };
 
   /* ------------------------------
@@ -65,33 +74,31 @@ export default function HaulingTripDetailsPage() {
   ------------------------------ */
   const handleSave = async () => {
     setErrorMsg("");
-    setSuccessMsg("");
 
     if (!hasChanges()) {
-      toast.error("No changes detected."); // ❌ ERROR TOAST
+      toast.error("No changes detected.");
       return;
     }
 
-    if (!clientId || !pickUpDate) {
-      toast.error("Client and pick-up date are required."); // ❌ ERROR TOAST
+    if (!clientId || !pickUpDate || !pickUpTime) {
+      toast.error("Client, pick-up date, and time are required.");
       return;
     }
+
+    const pickUpDateTime = `${pickUpDate}T${pickUpTime}:00`;
 
     setSaving(true);
 
     try {
       await api.put(`/admin/haulingtrip/${tripId}`, {
         ClientId: clientId,
-        PickUpDate: pickUpDate,
+        PickUpDate: pickUpDateTime,
       });
 
-      toast.success("Hauling trip updated successfully!"); // ✅ SUCCESS TOAST
-
-      setTimeout(() => {
-        router.push("/admin/hauling");
-      }, 1200);
+      toast.success("Hauling trip updated successfully!");
+      router.push("/admin/hauling");
     } catch {
-      toast.error("Failed to update hauling trip."); // ❌ ERROR TOAST
+      toast.error("Failed to update hauling trip.");
     }
 
     setSaving(false);
@@ -108,19 +115,13 @@ export default function HaulingTripDetailsPage() {
 
     try {
       await api.delete(`/admin/haulingtrip/${tripId}`);
-      setDeleteMsg("Trip successfully deleted!");
-
-      setTimeout(() => {
-        router.push("/admin/hauling");
-      }, 1200);
+      toast.success("Trip deleted.");
+      router.push("/admin/hauling");
     } catch {
-      setErrorMsg("Failed to delete hauling trip.");
+      toast.error("Failed to delete hauling trip.");
     }
   };
 
-  /* ------------------------------
-        LOADING + NOT FOUND
-  ------------------------------ */
   if (loading) {
     return (
       <div className="text-center py-10 text-gray-500">
@@ -139,50 +140,26 @@ export default function HaulingTripDetailsPage() {
     <div className="px-3 sm:px-4 md:px-0 py-3 sm:py-4">
       <div className="max-w-3xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow border">
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
-          <div className="min-w-0">
+        <div className="flex justify-between mb-6">
+          <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
               Hauling Trip #{tripId}
             </h1>
             <p className="text-gray-500 text-sm">
-              Update hauling trip details or delete this record.
+              Update hauling trip details
             </p>
           </div>
 
-          {/* Optional: back link (UI-only, no logic impact) */}
           <button
-            type="button"
             onClick={() => router.push("/admin/hauling")}
-            className="
-              w-full sm:w-auto px-4 py-2.5 rounded-xl border text-sm font-semibold
-              border-gray-300 text-gray-700 hover:bg-gray-50
-              active:scale-[0.99] transition
-            "
+            className="border px-4 py-2 rounded-xl text-sm font-semibold"
           >
             ← Back
           </button>
         </div>
 
-        {/* SUCCESS / ERROR MESSAGES */}
-        {successMsg && (
-          <div className="p-3 mb-4 bg-green-100 text-green-700 border border-green-300 rounded-xl text-sm">
-            {successMsg}
-          </div>
-        )}
-        {deleteMsg && (
-          <div className="p-3 mb-4 bg-red-100 text-red-700 border border-red-300 rounded-xl text-sm">
-            {deleteMsg}
-          </div>
-        )}
-        {errorMsg && (
-          <div className="p-3 mb-4 bg-red-100 text-red-700 border border-red-300 rounded-xl text-sm">
-            {errorMsg}
-          </div>
-        )}
-
         {/* FORM */}
-        <div className="space-y-5 sm:space-y-6">
-          {/* CLIENT */}
+        <div className="space-y-5">
           <FormGroupSelect
             label="Client"
             value={clientId ?? ""}
@@ -193,24 +170,28 @@ export default function HaulingTripDetailsPage() {
             }))}
           />
 
-          {/* PICKUP DATE */}
-          <FormGroup
-            label="Pick-up Date"
-            type="date"
-            value={pickUpDate}
-            onChange={setPickUpDate}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup
+              label="Pick-up Date"
+              type="date"
+              value={pickUpDate}
+              onChange={setPickUpDate}
+            />
+
+            <FormGroup
+              label="Pick-up Time"
+              type="time"
+              value={pickUpTime}
+              onChange={setPickUpTime}
+            />
+          </div>
         </div>
 
         {/* ACTION BUTTONS */}
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 mt-8 sm:mt-10">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 mt-8">
           <button
             onClick={handleDelete}
-            className="
-              w-full sm:w-auto px-6 py-3 rounded-xl font-semibold
-              bg-red-600 text-white shadow hover:bg-red-700
-              active:scale-[0.99] transition
-            "
+            className="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold"
           >
             Delete Trip
           </button>
@@ -218,12 +199,7 @@ export default function HaulingTripDetailsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="
-              w-full sm:w-auto px-6 py-3 rounded-xl font-semibold
-              bg-indigo-600 text-white shadow hover:bg-indigo-700
-              disabled:opacity-50 disabled:cursor-not-allowed
-              active:scale-[0.99] transition
-            "
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold"
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>
@@ -234,7 +210,7 @@ export default function HaulingTripDetailsPage() {
 }
 
 /* ------------------------------------
-        TEXT INPUT
+        INPUT COMPONENTS
 ------------------------------------ */
 function FormGroup({ label, value, onChange, type = "text" }: any) {
   return (
@@ -246,19 +222,12 @@ function FormGroup({ label, value, onChange, type = "text" }: any) {
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="
-          w-full border border-gray-300 rounded-xl p-3 bg-white
-          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-          outline-none text-sm text-gray-700 shadow-sm transition
-        "
+        className="w-full border rounded-xl p-3"
       />
     </div>
   );
 }
 
-/* ------------------------------------
-        SELECT INPUT
------------------------------------- */
 function FormGroupSelect({ label, value, onChange, options }: any) {
   return (
     <div>
@@ -270,11 +239,7 @@ function FormGroupSelect({ label, value, onChange, options }: any) {
         onChange={(e) =>
           onChange(e.target.value === "" ? null : Number(e.target.value))
         }
-        className="
-          w-full border border-gray-300 rounded-xl p-3 bg-white
-          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-          outline-none text-sm text-gray-700 shadow-sm transition
-        "
+        className="w-full border rounded-xl p-3"
       >
         <option value="">Select...</option>
         {options.map((opt: any) => (

@@ -9,6 +9,7 @@ export default function CreateHaulingTripPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [clientId, setClientId] = useState<number | null>(null);
   const [pickupDate, setPickupDate] = useState("");
+  const [pickupTime, setPickupTime] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [clientsLoading, setClientsLoading] = useState(true);
@@ -31,29 +32,33 @@ export default function CreateHaulingTripPage() {
   }, []);
 
   const handleSave = async () => {
-    if (!clientId || !pickupDate) {
-      toast.error("Client and pick-up date are required."); // ❌ ERROR TOAST
+    if (!clientId || !pickupDate || !pickupTime) {
+      toast.error("Client, pick-up date, and pick-up time are required.");
       return;
     }
+
+    // ✅ Combine date + time into one ISO datetime string for PickUpDate
+    const pickUpDateTime = `${pickupDate}T${pickupTime}:00`;
 
     setLoading(true);
 
     try {
       await api.post("/admin/haulingtrip", {
         clientId: clientId,
-        pickUpDate: pickupDate,
+        pickUpDate: pickUpDateTime, // ✅ date+time stored here
         driverId: null,
         status: "Pending",
       });
 
-      toast.success("Hauling trip created successfully!"); // ✅ SUCCESS TOAST
+      toast.success("Hauling trip created successfully!");
 
       // Reset fields
       setClientId(null);
       setPickupDate("");
+      setPickupTime("");
     } catch (err) {
       console.log(err);
-      toast.error("Failed to create hauling trip."); // ❌ ERROR TOAST
+      toast.error("Failed to create hauling trip.");
     }
 
     setLoading(false);
@@ -97,7 +102,10 @@ export default function CreateHaulingTripPage() {
             ) : (
               <select
                 value={clientId ?? ""}
-                onChange={(e) => setClientId(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setClientId(val ? Number(val) : null);
+                }}
                 className="
                   w-full border border-gray-300 rounded-xl p-3 text-gray-700 bg-white
                   focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
@@ -133,6 +141,27 @@ export default function CreateHaulingTripPage() {
             />
           </div>
 
+          {/* PICKUP TIME */}
+          <div>
+            <label className="text-sm font-semibold text-gray-700 mb-1 block">
+              Pick-up Time
+            </label>
+
+            <input
+              type="time"
+              value={pickupTime}
+              onChange={(e) => setPickupTime(e.target.value)}
+              step="300"
+              className="
+                w-full border border-gray-300 rounded-xl p-3
+                bg-white text-gray-700
+                focus:ring-2 focus:ring-indigo-500
+                focus:border-indigo-500
+                outline-none shadow-sm
+              "
+            />
+          </div>
+
           {/* SUBMIT BUTTON */}
           <button
             onClick={handleSave}
@@ -149,12 +178,7 @@ export default function CreateHaulingTripPage() {
 
         {/* SUCCESS POPUP */}
         {success && (
-          <div
-            className="
-              fixed inset-0 flex items-center justify-center
-              bg-black/40 px-4
-            "
-          >
+          <div className="fixed inset-0 flex items-center justify-center bg-black/40 px-4">
             <div className="bg-white p-6 rounded-2xl shadow-lg text-center w-full max-w-xs">
               <div className="text-5xl text-green-500 mb-3">✔️</div>
               <p className="text-lg font-semibold text-green-600">
